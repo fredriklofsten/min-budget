@@ -136,6 +136,13 @@ input[type=color]{width:100%;height:46px;border:1px solid var(--line);border-rad
 .qs input.big{font-size:2rem;font-weight:700;text-align:center}
 .qs .row2{display:flex;gap:8px;margin-top:12px}
 .qs .row2 .btn{flex:1}
+
+.qchips.fav button{border-color:var(--accent);font-weight:600}
+.improw{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.improw .t{min-width:0;overflow-wrap:anywhere}
+.improw select{grid-column:2/-1}
+.improw input[type=checkbox]{width:22px;height:22px}
+.improw.off{opacity:.6}
 .toast{position:fixed;left:50%;bottom:130px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:10px 18px;border-radius:999px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;font-weight:600;max-width:90vw;text-align:center}
 .toast.on{opacity:1}
 .toast .tact{margin-left:12px;background:none;border:0;color:inherit;text-decoration:underline;font-weight:700;cursor:pointer;padding:4px}
@@ -191,6 +198,7 @@ body.has-bg .help{margin-top:6px}
     <div id="warnLog"></div>
     <div id="todayCard"></div>
     <div class="card">
+      <div id="favWrap" style="display:none"><label>Mina snabbval</label><div class="qchips fav" id="fav"></div></div>
       <div id="quickWrap" style="display:none"><label>Snabbval: tryck för att logga om samma köp</label><div class="qchips" id="quick"></div></div>
       <label for="l-amount">Belopp</label>
       <input type="number" id="l-amount" inputmode="decimal" min="0" placeholder="0" style="font-size:1.6rem;font-weight:700">
@@ -202,6 +210,14 @@ body.has-bg .help{margin-top:6px}
       </div>
       <button class="btn full" id="l-save" style="margin-top:14px">Spara utgift</button>
     </div>
+    <details class="card" id="impCard"><summary>Importera köp från banken</summary>
+      <p class="lbl" style="margin-top:0">Fungerar med Länsförsäkringar, Swedbank och SEB. Exportera dina transaktioner som CSV eller Excel i internetbanken eller bankappen och välj filen här. Du kan också markera transaktionerna i internetbanken, kopiera dem och klistra in i rutan. Du får se alla köp innan något sparas.</p>
+      <input type="file" id="impFile" style="width:100%;margin-bottom:10px">
+      <label for="impText">Eller klistra in text</label>
+      <textarea id="impText" placeholder="Klistra in transaktioner här"></textarea>
+      <button class="btn ghost" id="impPaste" style="margin-top:8px">Läs in texten</button>
+      <div id="impOut" style="margin-top:12px"></div>
+    </details>
     <div class="card"><h2>Utgifter denna period</h2><div id="logList"></div></div>
   </section>
 
@@ -365,6 +381,12 @@ body.has-bg .help{margin-top:6px}
       <label class="chk"><input type="checkbox" id="spread"><span>Sprid kvartals- och halvårsutgifter över månaderna<br><span class="lbl">På: "kvar" blir lika varje månad. Av: de räknas bara den månad de dras.</span></span></label>
     </details>
 
+    <details class="card"><summary>Mina snabbval</summary>
+      <p class="lbl" style="margin-top:0">Skapa knappar för köp du gör ofta, till exempel "Lunch 95 kr" eller "Bensin". De dyker upp när du loggar. Lämnar du beloppet tomt fyller knappen bara i kategori och text, så skriver du beloppet själv.</p>
+      <div id="qpList"></div>
+      <button class="btn ghost full" id="addQp">Lägg till snabbval</button>
+    </details>
+
     <details class="card"><summary>Dela appen</summary>
       <p class="lbl" style="margin-top:0">Skicka appen till familj och vänner. De får en egen, tom budget. Dina siffror delas aldrig.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -400,6 +422,7 @@ body.has-bg .help{margin-top:6px}
 <div class="qs-bg" id="qsBg"></div>
 <div class="qs" id="qs" role="dialog" aria-label="Snabblogga utgift" aria-hidden="true">
   <div class="hd"><b>Logga köp</b><button id="qsClose" aria-label="Stäng">✕</button></div>
+  <div id="qsFavWrap" style="display:none"><label>Mina snabbval</label><div class="qchips fav" id="qsFav"></div></div>
   <div id="qsQuickWrap" style="display:none"><label>Tryck för att logga om samma köp direkt</label><div class="qchips" id="qsQuick"></div></div>
   <input type="number" class="big" id="qs-amount" inputmode="decimal" min="0" placeholder="0 kr" aria-label="Belopp">
   <label style="margin-top:10px">Kategori</label>
@@ -408,6 +431,7 @@ body.has-bg .help{margin-top:6px}
     <div><label>När</label><div class="chips" id="qs-when"><button class="chip" data-w="0" aria-pressed="true">Idag</button><button class="chip" data-w="1" aria-pressed="false">Igår</button></div></div>
     <div><label for="qs-note">Vad? (valfritt)</label><input type="text" id="qs-note" placeholder="t.ex. ICA"></div>
   </div>
+  <button class="btn ghost" id="qs-fav" style="width:100%;margin-top:12px">Spara som snabbval</button>
   <div class="row2"><button class="btn ghost" id="qs-next">Spara och nästa</button><button class="btn" id="qs-save">Spara</button></div>
 </div>
 <button class="fab" id="fab">＋ Logga köp</button>
@@ -475,6 +499,7 @@ function defaults() {
     payday: 25, spread: true, dayMode: 'rolling', dayFixed: 0, updatedAt: 0, tourDone: false, welcomed: false,
     incomes: [],
     expenses: [],
+    quick: [], rules: {},
     cats: defaultCats().map(c => ({ ...c, weekly: 0 })),
     goals: [],
     rewards: { on: true, milestones: [
@@ -507,6 +532,8 @@ function normalize(o) {
     const g = o.goal;
     out.goals = (g && num(g.target) > 0) ? [{ id: uid(), name: g.name || 'Sparmål', target: num(g.target), saved: num(g.saved), weekly: num((o.weekly || {}).spar) }] : [];
   }
+  out.quick = Array.isArray(o.quick) ? o.quick : [];
+  out.rules = (o.rules && typeof o.rules === 'object' && !Array.isArray(o.rules)) ? o.rules : {};
   return out;
 }
 function loadLocal() {
@@ -1196,7 +1223,7 @@ function renderRewardsEditor() {
 function update() {
   const m = model();
   snapshot(m);
-  renderOverview(m); renderChips(); renderLog(m); renderWeeks(m); renderDays(m); renderHistory(m); renderReport(m);
+  renderOverview(m); renderChips(); renderFav(); renderLog(m); renderWeeks(m); renderDays(m); renderHistory(m); renderReport(m);
   document.getElementById('incTotal').textContent = fmt(m.income);
   document.getElementById('expTotal').textContent = fmt(m.expTotal);
 }
@@ -1217,6 +1244,7 @@ function syncStatic() {
   document.getElementById('pf-start').innerHTML = Object.keys(NAV).map(k => `<option value="${k}"${p.startTab === k ? ' selected' : ''}>${NAV[k]}</option>`).join('');
   document.querySelectorAll('[data-hm]').forEach(c => c.checked = !!p.home[c.dataset.hm]);
   document.getElementById('l-date').value = iso(new Date());
+  renderQp();
 }
 
 /* ---------- navigation ---------- */
@@ -1226,6 +1254,7 @@ function showTab(t, noHash) {
   document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === 's-' + t));
   document.querySelectorAll('.nb').forEach(b => { if (b.dataset.t === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   document.getElementById('fab').hidden = false;
+  if (t === 'profil') renderQp();
   window.scrollTo(0, 0);
   if (!noHash) { try { location.hash = t; } catch (e) {} }
 }
@@ -1261,7 +1290,7 @@ function qsRender() {
   const sc = spendCats();
   if (!sc.find(c => c.id === qsCat)) qsCat = (sc.find(c => c.id === logCat) || sc[0] || {}).id || '';
   document.getElementById('qs-cats').innerHTML = sc.map(c => `<button class="chip" data-c="${c.id}" aria-pressed="${c.id === qsCat}">${esc(cl(c))}</button>`).join('') || '<p class="lbl">Lägg till en utgiftskategori först.</p>';
-  renderQuick();
+  renderQuick(); renderFav();
   document.getElementById('qsQuickWrap').style.display = quickList.length ? '' : 'none';
   document.getElementById('qsQuick').innerHTML = quickList.map((l, i) => `<button data-qi="${i}">${esc(l.note || catById(l.cat).name)} · ${fmt(l.amount)}</button>`).join('');
 }
@@ -1294,6 +1323,257 @@ document.getElementById('qsQuick').addEventListener('click', e => {
 });
 ['qs-amount', 'qs-note'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') qsSave(false); }));
 document.addEventListener('keydown', e => { if (e.key === 'Escape') qsClose(); });
+
+
+/* ---------- egna snabbval ---------- */
+function favHtml() {
+  return S.quick.filter(q => q.name || num(q.amount) > 0).map(q => `<button data-fi="${q.id}">${esc(q.name || ((catById(q.cat) || {}).name) || '')}${num(q.amount) > 0 ? ' · ' + fmt(q.amount) : ''}</button>`).join('');
+}
+function renderFav() {
+  const h = favHtml();
+  [['qsFav', 'qsFavWrap'], ['fav', 'favWrap']].forEach(([a, b]) => { document.getElementById(a).innerHTML = h; document.getElementById(b).style.display = h ? '' : 'none'; });
+}
+function renderQp() {
+  const sc = spendCats();
+  document.getElementById('qpList').innerHTML = S.quick.map(q => `
+    <div class="item" data-id="${q.id}">
+      <div class="head"><div><label>Namn</label><input type="text" data-f="name" value="${esc(q.name || '')}" placeholder="t.ex. Lunch"></div><button class="btn del" data-del="${q.id}">Ta bort</button></div>
+      <div class="grid">
+        <div><label>Belopp (valfritt)</label><input type="number" inputmode="decimal" data-f="amount" value="${num(q.amount) || ''}" placeholder="0"></div>
+        <div><label>Kategori</label><select data-f="cat">${sc.map(c => `<option value="${c.id}"${c.id === q.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+      </div>
+    </div>`).join('') || '<p class="lbl">Inga snabbval än.</p>';
+}
+(function () {
+  const el = document.getElementById('qpList');
+  const h = e => {
+    const t = e.target, row = t.closest('.item'); if (!row || !t.dataset.f) return;
+    const q = S.quick.find(x => x.id === row.dataset.id); if (!q) return;
+    q[t.dataset.f] = t.dataset.f === 'amount' ? num(t.value) : t.value;
+    save(); renderFav();
+  };
+  el.addEventListener('input', h); el.addEventListener('change', h);
+  el.addEventListener('click', e => { const id = e.target.dataset && e.target.dataset.del; if (!id) return; removeItem(() => S.quick, id, () => { renderQp(); renderFav(); }); });
+  document.getElementById('addQp').addEventListener('click', () => {
+    const sc = spendCats(); if (!sc.length) { toast('Skapa en utgiftskategori först'); return; }
+    S.quick.push({ id: uid(), name: '', amount: 0, cat: sc[0].id }); save(); renderQp(); renderFav();
+    const ins = el.querySelectorAll('[data-f=name]'); if (ins.length) ins[ins.length - 1].focus();
+  });
+})();
+function useFav(id) {
+  const q = S.quick.find(x => x.id === id); if (!q) return;
+  if (!catById(q.cat)) { toast('Kategorin finns inte längre. Ändra under Profil, Mina snabbval.'); return; }
+  const open = document.getElementById('qs').classList.contains('on');
+  if (num(q.amount) > 0) { logNow(num(q.amount), q.cat, q.name, open ? qsWhen : 0); if (open) qsClose(); return; }
+  qsCat = q.cat; if (!open) qsOpen(); else qsRender();
+  document.getElementById('qs-note').value = q.name || ''; document.getElementById('qs-amount').focus();
+}
+['qsFav', 'fav'].forEach(id => document.getElementById(id).addEventListener('click', e => { const b = e.target.closest('[data-fi]'); if (b) useFav(b.dataset.fi); }));
+document.getElementById('qs-fav').addEventListener('click', () => {
+  if (!qsCat) { toast('Välj en kategori först'); return; }
+  const a = num(document.getElementById('qs-amount').value), n = document.getElementById('qs-note').value.trim() || (catById(qsCat) || {}).name || '';
+  if (S.quick.some(q => q.cat === qsCat && (q.name || '') === n && num(q.amount) === a)) { toast('Finns redan som snabbval'); return; }
+  S.quick.push({ id: uid(), name: n, amount: a, cat: qsCat }); save(); renderFav(); renderQp();
+  toast('Snabbval sparat: ' + n + (a > 0 ? ' · ' + fmt(a) : ''));
+});
+
+/* ---------- import från bank ---------- */
+let impRows = [];
+const nrm = s => String(s == null ? '' : s).toLowerCase().replace(/[åä]/g, 'a').replace(/ö/g, 'o').replace(/\s+/g, ' ').trim();
+function decodeBuf(buf) {
+  const u = new Uint8Array(buf);
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(u).replace(/^﻿/, ''); }
+  catch (e) { return new TextDecoder('windows-1252').decode(u); }
+}
+function parseCsvText(text, delim) {
+  const rows = []; let row = [], f = '', q = false;
+  const push = () => { row.push(f); f = ''; };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"' && f === '') q = true;
+    else if (c === delim) push();
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; push(); if (row.some(x => x.trim() !== '')) rows.push(row); row = []; }
+    else f += c;
+  }
+  push(); if (row.some(x => x.trim() !== '')) rows.push(row);
+  return rows;
+}
+function detectDelim(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 20);
+  let best = ';', bs = -1;
+  for (const d of [';', '\t', ',']) {
+    const counts = lines.map(l => l.split(d).length - 1);
+    const med = counts.slice().sort((a, b) => a - b)[Math.floor(counts.length / 2)] || 0;
+    const score = med >= 1 ? counts.filter(c => c === med).length * 100 + med : 0;
+    if (score > bs) { bs = score; best = d; }
+  }
+  return best;
+}
+function parseAmt(v) {
+  if (typeof v === 'number') return v;
+  let s = String(v == null ? '' : v).replace(/[  \s]/g, '').replace(/[−–]/g, '-').replace(/(kr|sek)$/i, '');
+  if (!/\d/.test(s)) return NaN;
+  let neg = false; if (/-$/.test(s)) { neg = true; s = s.slice(0, -1); }
+  if (!/^[+-]?[\d.,]+$/.test(s)) return NaN;
+  const lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
+  if (lc >= 0 && ld >= 0) { s = lc > ld ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, ''); }
+  else if (lc >= 0) { s = (/,\d{1,2}$/.test(s) && s.indexOf(',') === lc) ? s.replace(',', '.') : s.replace(/,/g, ''); }
+  else if (ld >= 0 && /^[+-]?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  const n = parseFloat(s); return isNaN(n) ? NaN : (neg ? -Math.abs(n) : n);
+}
+function parseDt(v) {
+  if (typeof v === 'number') { if (v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 86400000)).toISOString().slice(0, 10); return ''; }
+  const s = String(v == null ? '' : v).trim(); let m, y, mo, d;
+  if ((m = s.match(/(\d{4})-(\d{2})-(\d{2})/))) { y = m[1]; mo = m[2]; d = m[3]; }
+  else if ((m = s.match(/^(\d{4})(\d{2})(\d{2})$/))) { y = m[1]; mo = m[2]; d = m[3]; }
+  else if ((m = s.match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/))) { y = m[3]; mo = m[2].padStart(2, '0'); d = m[1].padStart(2, '0'); }
+  else return '';
+  return (+mo >= 1 && +mo <= 12 && +d >= 1 && +d <= 31) ? y + '-' + mo + '-' + d : '';
+}
+const DATE_H = ['transaktionsdag', 'transaktionsdatum', 'bokforingsdag', 'bokforingsdatum', 'datum', 'valutadag', 'valutadatum'];
+const TEXT_H = ['beskrivning', 'text / mottagare', 'text/mottagare', 'mottagare', 'text', 'rubrik', 'namn', 'referens', 'meddelande'];
+const AMT_H = ['belopp', 'summa', 'amount'];
+function findCol(hd, list) {
+  for (const k of list) { const i = hd.indexOf(k); if (i >= 0) return i; }
+  for (const k of list) { const i = hd.findIndex(h => h.startsWith(k)); if (i >= 0) return i; }
+  return -1;
+}
+function mapRows(rows) {
+  let hi = -1, cd = -1, ct = -1, ca = -1;
+  for (let i = 0; i < Math.min(rows.length, 25); i++) {
+    const hd = rows[i].map(nrm), a = findCol(hd, AMT_H), d = findCol(hd, DATE_H);
+    if (a >= 0 && d >= 0) { hi = i; ca = a; cd = d; ct = findCol(hd, TEXT_H); break; }
+  }
+  let data = rows.slice(hi + 1);
+  if (hi < 0) {
+    const smp = rows.slice(0, 40), n = Math.max(...smp.map(r => r.length), 0);
+    const frac = (c, fn) => smp.filter(r => fn(r[c])).length / (smp.length || 1);
+    for (let c = 0; c < n; c++) if (cd < 0 && frac(c, v => parseDt(v) !== '') >= 0.6) cd = c;
+    for (let c = 0; c < n; c++) if (c !== cd && ca < 0 && frac(c, v => !isNaN(parseAmt(v)) && parseDt(v) === '') >= 0.6) ca = c;
+    let bl = -1;
+    for (let c = 0; c < n; c++) if (c !== cd && c !== ca) { const l = smp.reduce((t, r) => t + String(r[c] || '').length, 0); if (l > bl) { bl = l; ct = c; } }
+    data = rows;
+  }
+  if (cd < 0 || ca < 0) return null;
+  const items = []; let inc = 0;
+  data.forEach(r => {
+    const date = parseDt(r[cd]), amt = parseAmt(r[ca]);
+    if (!date || isNaN(amt) || amt === 0) return;
+    if (amt > 0) { inc++; return; }
+    const text = (ct >= 0 ? String(r[ct] == null ? '' : r[ct]) : '').replace(/\s+/g, ' ').trim();
+    items.push({ date, amt: Math.abs(amt), text });
+  });
+  return { items, inc };
+}
+async function readXlsx(buf) {
+  const u = new Uint8Array(buf), dv = new DataView(buf), dec = a => new TextDecoder('utf-8').decode(a);
+  let e = u.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('zip');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const files = {};
+  for (let i = 0; i < n; i++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error('zip');
+    const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    files[dec(u.subarray(p + 46, p + 46 + nl))] = { method: dv.getUint16(p + 10, true), size: dv.getUint32(p + 20, true), lho: dv.getUint32(p + 42, true) };
+    p += 46 + nl + xl + cl;
+  }
+  const get = async name => {
+    const f = files[name]; if (!f) return null;
+    const start = f.lho + 30 + dv.getUint16(f.lho + 26, true) + dv.getUint16(f.lho + 28, true), data = u.slice(start, start + f.size);
+    if (f.method === 0) return dec(data);
+    const ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(); w.write(data); w.close();
+    return dec(new Uint8Array(await new Response(ds.readable).arrayBuffer()));
+  };
+  const shared = [], sx = await get('xl/sharedStrings.xml');
+  if (sx) new DOMParser().parseFromString(sx, 'application/xml').querySelectorAll('si').forEach(si => shared.push([...si.querySelectorAll('t')].map(t => t.textContent).join('')));
+  const sheetName = files['xl/worksheets/sheet1.xml'] ? 'xl/worksheets/sheet1.xml' : Object.keys(files).filter(k => /^xl\/worksheets\/[^/]+\.xml$/.test(k)).sort()[0];
+  if (!sheetName) throw new Error('sheet');
+  const doc = new DOMParser().parseFromString(await get(sheetName), 'application/xml'), rows = [];
+  doc.querySelectorAll('row').forEach(r => {
+    const row = [];
+    r.querySelectorAll('c').forEach(c => {
+      const ref = c.getAttribute('r') || '', m = ref.match(/^([A-Z]+)/); let ci = row.length;
+      if (m) { ci = 0; for (const ch of m[1]) ci = ci * 26 + ch.charCodeAt(0) - 64; ci--; }
+      const t = c.getAttribute('t'), v = c.querySelector('v');
+      let val = '';
+      if (t === 's') val = shared[+(v ? v.textContent : -1)] || '';
+      else if (t === 'inlineStr') val = [...c.querySelectorAll('t')].map(x => x.textContent).join('');
+      else if (v) val = (t === 'str' || t === 'b' || t === 'e') ? v.textContent : parseFloat(v.textContent);
+      while (row.length < ci) row.push('');
+      row[ci] = val;
+    });
+    if (row.some(x => String(x).trim() !== '')) rows.push(row);
+  });
+  return rows;
+}
+function merchKey(t) {
+  return String(t).toUpperCase().replace(/[0-9*#.,:;/\\()_-]+/g, ' ').split(/\s+/).filter(x => x && !/^(KORTKÖP|KORTKOP|KÖP|KOP|KORT|BETALNING|SWISH|PRELIMINÄR)$/.test(x)).slice(0, 2).join(' ');
+}
+function impLoad(rows) {
+  const r = rows && rows.length ? mapRows(rows) : null;
+  const out = document.getElementById('impOut');
+  if (!r || !r.items.length) { impRows = []; out.innerHTML = '<p class="lbl">Hittade inga utgifter i filen. Kontrollera att den innehåller datum och belopp, och att köpen har minustecken. Prova annars att spara den som CSV.</p>'; return; }
+  const fixed = S.expenses.map(x => num(x.amount)).filter(x => x > 0);
+  impRows = r.items.map((x, i) => {
+    const key = merchKey(x.text), cat = (S.rules[key] && catById(S.rules[key])) ? S.rules[key] : '';
+    const dup = S.log.some(l => l.date === x.date && Math.abs(num(l.amount) - x.amt) < 0.01);
+    const fx = fixed.some(f => Math.abs(f - x.amt) < 1);
+    return { id: i, ...x, key, cat, dup, fx, on: !!cat && !dup && !fx };
+  }).sort((a, b) => b.date.localeCompare(a.date));
+  impRows.inc = r.inc;
+  impRender();
+}
+function impRender() {
+  const out = document.getElementById('impOut'), sc = spendCats();
+  const sel = impRows.filter(x => x.on && x.cat), sum = sel.reduce((t, x) => t + x.amt, 0);
+  let h = `<p class="lbl" style="margin-top:0">Hittade ${impRows.length} utgifter${impRows.inc ? ' (' + impRows.inc + ' inkomster hoppades över)' : ''}. Välj kategori för de köp du vill ta med.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn ghost" id="impAll">Markera alla med kategori</button><button class="btn ghost" id="impNone">Avmarkera alla</button></div>`;
+  impRows.forEach(x => {
+    h += `<div class="improw${x.on ? '' : ' off'}"><input type="checkbox" data-ci="${x.id}"${x.on ? ' checked' : ''} aria-label="Ta med"><span class="t">${esc(x.text.slice(0, 48) || 'Utan text')}<br><small class="lbl">${dlIso(x.date)}${x.dup ? ' · verkar redan vara inloggad' : ''}${x.fx ? ' · liknar en fast utgift' : ''}</small></span><b>${fmt(x.amt)}</b>
+      <select data-si="${x.id}"><option value="">Välj kategori</option>${sc.map(c => `<option value="${c.id}"${c.id === x.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>`;
+  });
+  h += `<button class="btn full" id="impGo" style="margin-top:12px"${sel.length ? '' : ' disabled'}>Importera ${sel.length} köp (${fmt(sum)})</button>`;
+  out.innerHTML = h;
+}
+document.getElementById('impOut').addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.ci !== undefined) { const x = impRows.find(r => r.id === +t.dataset.ci); if (x) { x.on = t.checked && !!x.cat; if (t.checked && !x.cat) toast('Välj en kategori först'); } impRender(); return; }
+  if (t.dataset.si !== undefined) {
+    const x = impRows.find(r => r.id === +t.dataset.si); if (!x) return;
+    x.cat = t.value; x.on = !!x.cat && !x.dup && !x.fx;
+    if (x.cat) impRows.forEach(y => { if (y !== x && y.key && y.key === x.key && !y.cat) { y.cat = x.cat; y.on = !y.dup && !y.fx; } });
+    impRender();
+  }
+});
+document.getElementById('impOut').addEventListener('click', e => {
+  const id = e.target.id;
+  if (id === 'impAll') { impRows.forEach(x => { x.on = !!x.cat; }); impRender(); }
+  else if (id === 'impNone') { impRows.forEach(x => { x.on = false; }); impRender(); }
+  else if (id === 'impGo') {
+    const sel = impRows.filter(x => x.on && x.cat); if (!sel.length) return;
+    const ids = [];
+    sel.forEach(x => { const lid = uid(); ids.push(lid); S.log.push({ id: lid, date: x.date, amount: x.amt, cat: x.cat, note: x.text.slice(0, 40) }); if (x.key) S.rules[x.key] = x.cat; });
+    save(); update();
+    impRows = impRows.filter(x => !sel.includes(x)); if (impRows.length) impRender(); else document.getElementById('impOut').innerHTML = '<p class="lbl">Klart. Alla valda köp ligger nu i din budget.</p>';
+    toast(sel.length + ' köp importerade', 'Ångra', () => { S.log = S.log.filter(l => !ids.includes(l.id)); save(); update(); toast('Importen ångrad'); });
+  }
+});
+document.getElementById('impFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  try {
+    const buf = await f.arrayBuffer(), u = new Uint8Array(buf, 0, Math.min(4, buf.byteLength)); let rows;
+    if (u[0] === 0x50 && u[1] === 0x4b) rows = await readXlsx(buf);
+    else if (u[0] === 0xD0 && u[1] === 0xCF) { toast('Gamla Excel-filer (.xls) går inte att läsa. Spara dem som CSV eller .xlsx.'); e.target.value = ''; return; }
+    else { const t = decodeBuf(buf); rows = parseCsvText(t, detectDelim(t)); }
+    impLoad(rows);
+  } catch (err) { toast('Filen kunde inte läsas. Prova att spara den som CSV.'); }
+  e.target.value = '';
+});
+document.getElementById('impPaste').addEventListener('click', () => {
+  const t = document.getElementById('impText').value;
+  if (!t.trim()) { toast('Klistra in transaktionerna först'); return; }
+  impLoad(parseCsvText(t, detectDelim(t)));
+});
 
 /* ---------- logga ---------- */
 document.getElementById('l-cats').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; logCat = b.dataset.c; setActive('#l-cats .chip', x => x === b); });
