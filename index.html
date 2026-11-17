@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="En enkel budgetapp som visar vad du har kvar till nästa lön, per vecka och per dag. Allt sparas bara på din egen enhet.">
+<meta name="theme-color" content="#1f7a5c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f7a5c'/%3E%3Cpath d='M16 42h32M20 42V26m12 16V18m12 24V30' stroke='white' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+<title>Min budget</title>
+<style>
+:root{
+  --bg:#f4f6f5;--card:#ffffff;--accent:#1f7a5c;--ink:#17231f;--ink-bg:#17231f;--on-accent:#ffffff;--bad:#c0392b;--r:14px;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mute:color-mix(in srgb,var(--ink) 62%,var(--card));
+  --mute-bg:color-mix(in srgb,var(--ink-bg) 62%,var(--bg));
+  --line:color-mix(in srgb,var(--ink) 14%,var(--card));
+  --accent-soft:color-mix(in srgb,var(--accent) 14%,var(--card));
+  --bad-soft:color-mix(in srgb,var(--bad) 14%,var(--card));
+  --warn-soft:color-mix(in srgb,#d98e04 20%,var(--card));
+  --c1:#2b7a78;--c2:#3aaf85;--c3:#8ab17d;--e1:#d98e04;--e2:#c4623b;--e3:#8e5a9b;
+  --pad:14px;--gap:12px;--rowpad:8px;
+}
+*{box-sizing:border-box}
+html{font-size:16px}
+body{margin:0;background:var(--bg);color:var(--ink);font:1rem/1.45 var(--font);-webkit-tap-highlight-color:transparent}
+body[data-dens="1"]{--pad:10px;--gap:8px;--rowpad:5px}
+body[data-dens="2"]{--pad:18px;--gap:16px;--rowpad:11px}
+body[data-card="shadow"] .card{box-shadow:0 2px 10px rgba(0,0,0,.12);border-color:transparent}
+body[data-card="flat"] .card{border-color:transparent}
+.app{max-width:640px;margin:0 auto;padding:14px 14px 150px}
+.top{padding:6px 2px 4px;color:var(--ink-bg);display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.hi{font-size:1.4rem;font-weight:700}
+.sub{color:var(--mute-bg);font-size:.88rem;margin:2px 0 8px}
+.sync{font-size:.72rem;color:var(--mute-bg);white-space:nowrap;padding-top:8px}
+section{display:none}
+section.on{display:block}
+.pgtitle{font-size:1.15rem;font-weight:700;margin:6px 2px 2px;color:var(--ink-bg)}
+.help{color:var(--mute-bg);font-size:.88rem;margin:0 2px 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:var(--pad);margin:var(--gap) 0}
+.card h2{font-size:.92rem;margin:0 0 8px;color:var(--mute);font-weight:600}
+details.card>summary{list-style:none;cursor:pointer;font-weight:700;font-size:1rem;display:flex;justify-content:space-between;align-items:center;min-height:30px}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:"▾";color:var(--mute)}
+details.card[open]>summary::after{content:"▴"}
+details.card[open]>summary{margin-bottom:10px}
+.hero{text-align:center;padding:18px 14px}
+.big{font-size:2.4rem;font-weight:700;line-height:1.1}
+.mid{font-size:1.6rem;font-weight:700}
+.ok{color:var(--accent)}.neg{color:var(--bad)}
+.lbl{color:var(--mute);font-size:.82rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.two>div{background:var(--accent-soft);border-radius:calc(var(--r) - 2px);padding:10px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:var(--rowpad) 0;border-top:1px solid var(--line);align-items:baseline}
+.row:first-of-type{border-top:0}
+.row small{color:var(--mute)}
+.bar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:var(--line);margin:8px 0}
+.bar i{display:block;height:100%}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.note{background:var(--accent-soft);border-radius:calc(var(--r) - 2px);padding:10px;font-size:.88rem;margin:10px 0}
+.note.warn{background:var(--bad-soft);color:var(--bad)}
+.note.caution{background:var(--warn-soft);color:var(--ink)}
+label{display:block;font-size:.82rem;color:var(--mute);margin-bottom:3px}
+input,select,button,textarea{font:inherit}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-height:44px}
+textarea{min-height:90px;font-size:.8rem}
+input[type=color]{width:100%;height:46px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:3px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.grid.s{grid-template-columns:repeat(auto-fit,minmax(80px,1fr))}
+.item{border:1px solid var(--line);border-radius:calc(var(--r) - 2px);padding:10px;margin:10px 0}
+.item .head{display:flex;gap:8px;align-items:end;margin-bottom:8px}
+.item .head>div:first-child{flex:1}
+.eff{font-size:.82rem;color:var(--mute);margin-top:6px}
+.btn{padding:12px 16px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);cursor:pointer;font-weight:600;min-height:46px}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.del{background:transparent;border-color:var(--line);color:var(--bad);padding:10px 12px;min-height:44px}
+.btn.full{width:100%}
+.btn.sm{padding:8px 12px;min-height:38px;font-size:.88rem}
+.week.now{border:2px solid var(--accent)}
+.tag{font-size:.7rem;background:var(--accent);color:var(--on-accent);border-radius:6px;padding:2px 6px;margin-left:6px;vertical-align:middle}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:.95rem;color:var(--ink);margin:10px 0 0}
+.chk input{margin-top:4px;width:22px;height:22px;flex:none}
+.total{display:flex;justify-content:space-between;font-weight:700;padding-top:8px;border-top:2px solid var(--line);margin-top:6px}
+.foot{color:var(--mute-bg);font-size:.78rem;margin:16px 2px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{flex:1;min-width:90px;padding:12px 8px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;font-weight:600}
+.chip[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.seg{display:flex;gap:6px;margin:6px 0 4px}
+.seg button{flex:1;padding:11px 6px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;font-weight:600;min-height:44px}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.sws{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px}
+.sw{padding:26px 6px 8px;border-radius:12px;border:3px solid transparent;font-weight:600;font-size:.82rem;cursor:pointer;text-align:center;color:#111}
+.sw[aria-pressed=true]{border-color:var(--accent)}
+.logrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.logrow .t{flex:1}
+.logrow .x{background:none;border:0;color:var(--bad);font-size:1.2rem;padding:6px 10px;cursor:pointer;min-height:40px}
+.dayh{font-size:.8rem;color:var(--mute);margin-top:10px;font-weight:600}
+.pbar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin:6px 0}
+.pbar i{display:block;height:100%;background:var(--accent)}
+.pbar i.over{background:var(--bad)}
+.drow{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:6px;padding:7px 4px;border-top:1px solid var(--line);font-size:.88rem;align-items:center}
+.drow.h{font-size:.75rem;color:var(--mute);font-weight:700;border-top:0}
+.drow.done{opacity:.6}
+.drow.today{background:var(--accent-soft);border-radius:8px;font-weight:700;opacity:1}
+.drow span:not(:first-child){text-align:right}
+.crow{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:6px;padding:7px 0;border-top:1px solid var(--line);font-size:.88rem}
+.crow span:not(:first-child){text-align:right}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.badge{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:4px 10px;font-size:.78rem;font-weight:700}
+.donutwrap{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.legend{flex:1;min-width:140px;font-size:.88rem}
+.legend div{display:flex;justify-content:space-between;gap:8px;padding:3px 0}
+.bars{display:flex;align-items:flex-end;gap:2px;height:96px;margin-top:6px}
+.bars i{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px}
+.bars i.over{background:var(--bad)}
+.hbar{display:grid;grid-template-columns:90px 1fr auto;gap:8px;align-items:center;font-size:.82rem;padding:3px 0}
+.hbar .pbar{margin:0}
+.bottom{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+.bottom .in{display:flex;width:100%;max-width:640px}
+.nb{flex:1;border:0;background:none;color:var(--mute);padding:8px 2px 9px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.72rem;min-height:56px}
+.nb .ic{font-size:1.25rem;line-height:1}
+.nb .ic:empty{display:none}
+.nb[aria-current=page]{color:var(--accent);font-weight:700;box-shadow:inset 0 3px 0 var(--accent)}
+.fab{position:fixed;right:16px;bottom:76px;z-index:21;border:0;border-radius:999px;background:var(--accent);color:var(--on-accent);font-weight:700;padding:14px 20px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;font-size:1rem}
+.fab[hidden]{display:none}
+
+.qs-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;display:none}
+.qs-bg.on{display:block}
+.qs{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--card);color:var(--ink);border-radius:20px 20px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(0,0,0,.3);transform:translateY(105%);transition:transform .2s;max-height:92vh;overflow:auto}
+.qs.on{transform:none}
+.qs .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.qs .hd b{font-size:1.1rem}
+.qs .hd button{border:0;background:none;color:var(--ink);font-size:1.4rem;cursor:pointer;padding:6px 10px}
+.qs input.big{font-size:2rem;font-weight:700;text-align:center}
+.qs .row2{display:flex;gap:8px;margin-top:12px}
+.qs .row2 .btn{flex:1}
+.toast{position:fixed;left:50%;bottom:130px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:10px 18px;border-radius:999px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;font-weight:600;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.toast .tact{margin-left:12px;background:none;border:0;color:inherit;text-decoration:underline;font-weight:700;cursor:pointer;padding:4px}
+#bgLayer{position:fixed;inset:0;z-index:-2;background-size:cover;background-position:center;display:none}
+#bgDim{position:fixed;inset:0;z-index:-1;background:var(--bg);opacity:var(--dim,0);display:none}
+body.has-bg #bgLayer,body.has-bg #bgDim{display:block}
+body.has-bg .card{background:color-mix(in srgb,var(--card) var(--cardpct,92%),transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+body.has-bg .top,body.has-bg .pgtitle,body.has-bg .help{background:color-mix(in srgb,var(--card) 88%,transparent);color:var(--ink);padding:8px 12px;border-radius:var(--r);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+body.has-bg .help,body.has-bg .sub,body.has-bg .sync{color:var(--mute)}
+body.has-bg .pgtitle{display:inline-block;margin-bottom:6px}
+body.has-bg .help{margin-top:6px}
+.qa{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+.qa .btn{flex:1;min-width:110px}
+.lnk{float:right;background:none;border:0;color:var(--accent);font-weight:700;font-size:.82rem;cursor:pointer;padding:0 0 0 8px}
+.step{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.step:first-of-type{border-top:0}
+.step .n{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex:none}
+.step.done .n{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.step .t{flex:1}
+.welcome{position:fixed;inset:0;z-index:100;background:var(--bg);overflow:auto;display:none;padding:20px 14px}
+.welcome.on{display:block}
+.welcome .box{max-width:460px;margin:6vh auto 0}
+.welcome h1{font-size:1.7rem;margin:0 0 6px;color:var(--ink-bg)}
+.welcome p{color:var(--mute-bg);margin:0 0 14px}
+.thumb{width:100%;height:120px;border-radius:var(--r);background-size:cover;background-position:center;border:1px solid var(--line);margin-bottom:10px}
+.qchips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px}
+.qchips button{flex:none;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;font-size:.85rem;white-space:nowrap;min-height:38px}
+</style>
+</head>
+<body>
+<div class="welcome" id="welcome"><div class="box">
+  <h1>Välkommen till din budget</h1>
+  <p>Se direkt vad du har kvar när allt är betalt, hur mycket du kan använda per dag och per vecka, och följ upp vad du handlar för. Allt sparas bara på den här enheten.</p>
+  <div class="card">
+    <label for="wl-name">Vad heter du? (valfritt)</label><input type="text" id="wl-name" placeholder="Ditt namn">
+    <label for="wl-pay" style="margin-top:12px">Vilken dag i månaden får du lön?</label><input type="number" id="wl-pay" min="1" max="31" inputmode="numeric" value="25">
+    <button class="btn full" id="wl-fresh" style="margin-top:16px">Börja från noll</button>
+    <button class="btn ghost full" id="wl-demo" style="margin-top:8px">Titta först med exempelsiffror</button>
+  </div>
+  <p class="lbl">Du kan ändra allt senare under Profil. Inget konto behövs.</p>
+</div></div>
+<div id="bgLayer"></div><div id="bgDim"></div>
+<div class="app">
+  <header class="top">
+    <div><div class="hi" id="hi">Min budget</div><div class="sub" id="periodLine"></div></div>
+  </header>
+
+  <section id="s-hem" class="on"><div id="ov"></div></section>
+
+  <section id="s-logga">
+    <div class="pgtitle">Logga utgift</div>
+    <p class="help">Skriv in vad du handlat för. Det räknas direkt av från dina fria pengar.</p>
+    <div id="warnLog"></div>
+    <div id="todayCard"></div>
+    <div class="card">
+      <div id="quickWrap" style="display:none"><label>Snabbval: tryck för att logga om samma köp</label><div class="qchips" id="quick"></div></div>
+      <label for="l-amount">Belopp</label>
+      <input type="number" id="l-amount" inputmode="decimal" min="0" placeholder="0" style="font-size:1.6rem;font-weight:700">
+      <label style="margin-top:12px">Kategori</label>
+      <div class="chips" id="l-cats"></div>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="l-date">Datum</label><input type="date" id="l-date"></div>
+        <div><label for="l-note">Anteckning (valfritt)</label><input type="text" id="l-note" placeholder="t.ex. ICA"></div>
+      </div>
+      <button class="btn full" id="l-save" style="margin-top:14px">Spara utgift</button>
+    </div>
+    <div class="card"><h2>Utgifter denna period</h2><div id="logList"></div></div>
+  </section>
+
+  <section id="s-veckor">
+    <div class="pgtitle">Vecka och dag</div>
+    <p class="help">Dela upp pengarna per vecka eller per dag.</p>
+    <div class="seg" id="wdSeg">
+      <button data-v="weeks" aria-pressed="true">Veckor</button>
+      <button data-v="days" aria-pressed="false">Dagar</button>
+      <button data-v="cats" aria-pressed="false">Kategorier</button>
+    </div>
+    <div id="v-weeks"><div id="wkCheck"></div><div id="weeks"></div></div>
+    <div id="v-days" style="display:none">
+      <div class="card"><h2>Så räknas dagsbudgeten</h2>
+        <div class="seg" id="dmSeg">
+          <button data-m="rolling" aria-pressed="true">Automatisk</button>
+          <button data-m="fixed" aria-pressed="false">Eget belopp</button>
+        </div>
+        <p class="lbl" id="dmHelp" style="margin:6px 0 0"></p>
+        <div id="dmFixedWrap" style="display:none;margin-top:10px">
+          <label for="dayFixed">Belopp per dag</label>
+          <input type="number" id="dayFixed" min="0" inputmode="decimal">
+        </div>
+        <div id="dayCheck"></div>
+      </div>
+      <div class="card"><div id="dayList"></div></div>
+    </div>
+    <div id="v-cats" style="display:none">
+      <div class="card"><h2>Kategorier och veckobelopp</h2>
+        <p class="lbl" style="margin-top:0">Lägg till egna kategorier. "Utgift" kan du logga mot. "Sparande" är pengar du lägger undan. Slå på "flytta över" om det du inte använder ska följa med till nästa vecka.</p>
+        <div id="catList"></div>
+        <button class="btn full" id="addCat">+ Ny kategori</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-planera">
+    <div class="pgtitle">Planera</div>
+    <p class="help">Här lägger du in inkomster, utgifter och sparmål. Resten räknas ut automatiskt.</p>
+    <div class="seg" id="planSeg">
+      <button data-sub="inc" aria-pressed="true">Inkomster</button>
+      <button data-sub="exp" aria-pressed="false">Utgifter</button>
+      <button data-sub="goal" aria-pressed="false">Sparmål</button>
+    </div>
+    <div id="p-inc" class="card"><h2>Inkomster per månad</h2>
+      <div id="incList"></div>
+      <button class="btn full" id="addInc">+ Ny inkomst</button>
+      <div class="total"><span>Summa inkomster</span><span id="incTotal"></span></div>
+    </div>
+    <div id="p-exp" class="card" style="display:none"><h2>Utgifter och autogiro</h2>
+      <div id="expList"></div>
+      <button class="btn full" id="addExp">+ Ny utgift</button>
+      <div class="total"><span>Räknas denna period</span><span id="expTotal"></span></div>
+    </div>
+    <div id="p-goal" class="card" style="display:none"><h2>Mina sparmål</h2>
+      <p class="lbl" style="margin-top:0">Du kan ha flera mål. Fyll i hur mycket du sparar per vecka så räknas det ut när du är framme. På Hem lägger du till sparade belopp med ett tryck.</p>
+      <div id="goalList"></div>
+      <button class="btn full" id="addGoal">+ Nytt sparmål</button>
+    </div>
+  </section>
+
+  <section id="s-historia">
+    <div class="pgtitle">Historia och rapport</div>
+    <p class="help">Så gick det i tidigare perioder. En ny period börjar varje lönedag.</p>
+    <div class="seg" id="hsSeg">
+      <button data-h="per" aria-pressed="true">Perioder</button>
+      <button data-h="rep" aria-pressed="false">Rapport</button>
+    </div>
+    <div id="hist"></div>
+    <div id="report" style="display:none">
+      <div class="card"><label for="rpSel">Välj period</label><select id="rpSel"></select></div>
+      <div id="rpBody"></div>
+    </div>
+  </section>
+
+  <section id="s-profil">
+    <div class="pgtitle">Min profil</div>
+    <p class="help">Gör appen till din egen. Öppna en rubrik för att ändra.</p>
+
+    <details class="card" open><summary>Om dig</summary>
+      <label for="pf-name">Ditt namn</label><input type="text" id="pf-name" placeholder="Vad ska appen kalla dig?">
+      <div class="grid" style="margin-top:10px">
+        <div><label for="pf-greet">Hälsning</label><input type="text" id="pf-greet" placeholder="Hej"></div>
+        <div><label for="pf-title">Appens namn</label><input type="text" id="pf-title" placeholder="Min budget"></div>
+        <div><label for="pf-cur">Valuta</label><input type="text" id="pf-cur" placeholder="kr"></div>
+      </div>
+    </details>
+
+    <details class="card"><summary>Färger och utseende</summary>
+      <div class="sws" id="sws"></div>
+      <label style="margin-top:14px">Egna färger</label>
+      <div class="grid">
+        <div><label for="c-bg">Bakgrund</label><input type="color" id="c-bg"></div>
+        <div><label for="c-card">Kort</label><input type="color" id="c-card"></div>
+        <div><label for="c-accent">Accent</label><input type="color" id="c-accent"></div>
+      </div>
+      <label style="margin-top:14px">Textstorlek</label>
+      <div class="seg" id="sizeSeg"><button data-s="0">Normal</button><button data-s="1">Stor</button><button data-s="2">Extra stor</button></div>
+      <label style="margin-top:14px">Typsnitt</label>
+      <div class="seg" id="fontSeg"><button data-f="system">Standard</button><button data-f="serif">Serif</button><button data-f="rounded">Mjuk</button><button data-f="mono">Mono</button></div>
+      <label style="margin-top:14px">Täthet</label>
+      <div class="seg" id="densSeg"><button data-d="1">Kompakt</button><button data-d="0">Normal</button><button data-d="2">Luftig</button></div>
+      <label style="margin-top:14px">Kortstil</label>
+      <div class="seg" id="cardSeg"><button data-c="outline">Ram</button><button data-c="shadow">Skugga</button><button data-c="flat">Platt</button></div>
+      <label style="margin-top:14px" for="pf-r">Rundade hörn</label>
+      <input type="range" id="pf-r" min="2" max="26" style="width:100%">
+    </details>
+
+    <details class="card"><summary>Bakgrundsfoto</summary>
+      <p class="lbl" style="margin-top:0">Välj ett eget foto som bakgrund. Fotot förminskas och sparas på ditt konto, så det följer med till dina andra enheter.</p>
+      <div class="thumb" id="bgThumb" style="display:none"></div>
+      <input type="file" id="bgFile" accept="image/*" style="display:none">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="bgPick">Välj foto</button>
+        <button class="btn ghost" id="bgRemove" style="display:none">Ta bort foto</button>
+      </div>
+      <div id="bgCtl" style="display:none;margin-top:14px">
+        <label for="bg-dim">Tona ner fotot (så texten syns bättre)</label>
+        <input type="range" id="bg-dim" min="0" max="90" style="width:100%">
+        <label for="bg-blur" style="margin-top:12px">Suddighet</label>
+        <input type="range" id="bg-blur" min="0" max="14" style="width:100%">
+        <label for="bg-card" style="margin-top:12px">Hur täckande korten är</label>
+        <input type="range" id="bg-card" min="50" max="100" style="width:100%">
+      </div>
+    </details>
+
+    <details class="card"><summary>Ikoner</summary>
+      <label class="chk" style="margin-top:0"><input type="checkbox" id="pf-showic"><span>Visa ikoner<br><span class="lbl">Av som standard. Ikoner för kategorierna väljer du under Vecka/dag → Kategorier. Här väljer du för menyn.</span></span></label>
+      <div id="icInputs" style="margin-top:12px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn ghost" id="icDefault">Fyll i förslag</button>
+        <button class="btn ghost" id="icClear">Rensa alla</button>
+      </div>
+    </details>
+
+    <details class="card"><summary>Startsida och Hem</summary>
+      <label for="pf-start">Appen öppnas på</label>
+      <select id="pf-start"></select>
+      <label style="margin-top:12px">Visa på Hem</label>
+      <label class="chk"><input type="checkbox" data-hm="today"><span>Idag</span></label>
+      <label class="chk"><input type="checkbox" data-hm="rewards"><span>Mina belöningar</span></label>
+      <label class="chk"><input type="checkbox" data-hm="goals"><span>Mina sparmål</span></label>
+      <label class="chk"><input type="checkbox" data-hm="week"><span>Den här veckan</span></label>
+      <label class="chk"><input type="checkbox" data-hm="income"><span>Inkomster, uppstaplade</span></label>
+      <label class="chk"><input type="checkbox" data-hm="dist"><span>Så fördelas pengarna</span></label>
+    </details>
+
+    <details class="card"><summary>Varningar och belöningar</summary>
+      <label class="chk" style="margin-top:0"><input type="checkbox" id="al-on"><span>Varna mig när jag närmar mig eller går över budget</span></label>
+      <label for="al-th" style="margin-top:10px">Varna vid (% av budgeten)</label>
+      <input type="number" id="al-th" min="50" max="100" inputmode="numeric">
+      <label class="chk"><input type="checkbox" id="rw-on"><span>Visa belöningar för dagar i rad under dagsbudget</span></label>
+      <label style="margin-top:12px">Mina belöningar (antal dagar i rad och vad du unnar dig)</label>
+      <div id="rwList"></div>
+      <button class="btn ghost" id="addRw">+ Ny belöning</button>
+    </details>
+
+    <details class="card"><summary>Budgetinställningar</summary>
+      <label for="payday">Lönedag (datum i månaden)</label>
+      <input type="number" id="payday" min="1" max="31" inputmode="numeric">
+      <label class="chk"><input type="checkbox" id="spread"><span>Sprid kvartals- och halvårsutgifter över månaderna<br><span class="lbl">På: "kvar" blir lika varje månad. Av: de räknas bara den månad de dras.</span></span></label>
+    </details>
+
+    <details class="card"><summary>Dela appen</summary>
+      <p class="lbl" style="margin-top:0">Skicka appen till familj och vänner. De får en egen, tom budget. Dina siffror delas aldrig.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="shareBtn">Dela appen</button>
+        <button class="btn ghost" id="copyLink">Kopiera länk</button>
+      </div>
+      <p class="lbl" id="shareNote" style="margin-bottom:0"></p>
+      <p class="lbl">Tips: öppna appen i mobilens webbläsare och välj "Lägg till på hemskärmen", så får du den som en vanlig app.</p>
+    </details>
+
+    <details class="card"><summary>Säkerhetskopia och återställning</summary>
+      <p class="lbl" style="margin-top:0">Dina uppgifter finns bara i den här webbläsaren. Spara en kopia som fil för att flytta dem till en annan enhet eller vara säker.</p>
+      <input type="file" id="bkFile" accept="application/json,.json" style="display:none">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn" id="bkDownload">Spara kopia som fil</button>
+        <button class="btn ghost" id="bkUpload">Läs in kopia från fil</button>
+      </div>
+      <label>Eller som text</label>
+      <textarea id="bk" placeholder="Kopian visas här. Klistra in en kopia här för att läsa in den."></textarea>
+      <div style="display:flex;gap:8px;margin:8px 0 14px;flex-wrap:wrap">
+        <button class="btn ghost" id="bkMake">Skapa och kopiera</button>
+        <button class="btn ghost" id="bkLoad">Läs in från rutan</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn ghost" id="fresh">Töm allt (börja från noll)</button>
+        <button class="btn ghost" id="reset">Fyll i exempeldata</button>
+      </div>
+      <p class="foot" id="saveNote" style="margin-bottom:0"></p>
+    </details>
+  </section>
+</div>
+
+<div class="qs-bg" id="qsBg"></div>
+<div class="qs" id="qs" role="dialog" aria-label="Snabblogga utgift" aria-hidden="true">
+  <div class="hd"><b>Logga köp</b><button id="qsClose" aria-label="Stäng">✕</button></div>
+  <div id="qsQuickWrap" style="display:none"><label>Tryck för att logga om samma köp direkt</label><div class="qchips" id="qsQuick"></div></div>
+  <input type="number" class="big" id="qs-amount" inputmode="decimal" min="0" placeholder="0 kr" aria-label="Belopp">
+  <label style="margin-top:10px">Kategori</label>
+  <div class="chips" id="qs-cats"></div>
+  <div class="grid" style="margin-top:10px">
+    <div><label>När</label><div class="chips" id="qs-when"><button class="chip" data-w="0" aria-pressed="true">Idag</button><button class="chip" data-w="1" aria-pressed="false">Igår</button></div></div>
+    <div><label for="qs-note">Vad? (valfritt)</label><input type="text" id="qs-note" placeholder="t.ex. ICA"></div>
+  </div>
+  <div class="row2"><button class="btn ghost" id="qs-next">Spara och nästa</button><button class="btn" id="qs-save">Spara</button></div>
+</div>
+<button class="fab" id="fab">＋ Logga köp</button>
+<div class="toast" id="toast"></div>
+<nav class="bottom" aria-label="Huvudmeny"><div class="in">
+  <button class="nb" data-t="hem"><span class="ic"></span><span class="nl"></span></button>
+  <button class="nb" data-t="logga"><span class="ic"></span><span class="nl"></span></button>
+  <button class="nb" data-t="veckor"><span class="ic"></span><span class="nl"></span></button>
+  <button class="nb" data-t="planera"><span class="ic"></span><span class="nl"></span></button>
+  <button class="nb" data-t="historia"><span class="ic"></span><span class="nl"></span></button>
+  <button class="nb" data-t="profil"><span class="ic"></span><span class="nl"></span></button>
+</div></nav>
+
+<script>
+const KEY = 'budgetapp-v2';
+const MON = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
+const MONTHS = ['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
+const WD = ['sön','mån','tis','ons','tors','fre','lör'];
+const NAV = { hem: 'Hem', logga: 'Logga', veckor: 'Vecka/dag', planera: 'Planera', historia: 'Historia', profil: 'Profil' };
+const PALETTE = ['#d98e04', '#2b7a78', '#3aaf85', '#8e5a9b', '#c4623b', '#8ab17d', '#5b7bd6', '#b5527a', '#7a7a7a'];
+const FONTS = { system: 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', serif: 'Georgia,"Times New Roman",serif', rounded: 'ui-rounded,"Nunito","Trebuchet MS",system-ui,sans-serif', mono: 'ui-monospace,Menlo,Consolas,monospace' };
+const PRESETS = {
+  skog:{n:'Skog',bg:'#f4f6f5',card:'#ffffff',accent:'#1f7a5c'},
+  hav:{n:'Hav',bg:'#eaf2fb',card:'#ffffff',accent:'#1e63b8'},
+  sol:{n:'Solnedgång',bg:'#fff3e8',card:'#ffffff',accent:'#d9591f'},
+  lavendel:{n:'Lavendel',bg:'#f3effa',card:'#ffffff',accent:'#6b46c1'},
+  natt:{n:'Natt',bg:'#121917',card:'#1b2420',accent:'#4cc9a0'},
+  midnatt:{n:'Midnatt',bg:'#0e1420',card:'#182235',accent:'#6ea8ff'},
+  kontrast:{n:'Hög kontrast',bg:'#ffffff',card:'#ffffff',accent:'#000000'}
+};
+const uid = () => Math.random().toString(36).slice(2, 9);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const fmt = n => (Math.round(n) < 0 ? '−' : '') + Math.abs(Math.round(n)).toLocaleString('sv-SE') + ' ' + ((S.profile.currency || 'kr').trim());
+const plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);
+
+function defaultNavIcons() { return { hem: '🏠', logga: '✏️', veckor: '📅', planera: '🧾', historia: '📈', profil: '👤' }; }
+function defaultCats() {
+  return [
+    { id: 'mat', name: 'Mat', icon: '🛒', weekly: 1200, type: 'spend', carry: false },
+    { id: 'bensin', name: 'Bensin', icon: '⛽', weekly: 350, type: 'spend', carry: false },
+    { id: 'spar', name: 'Spar', icon: '🐷', weekly: 300, type: 'save', carry: false },
+    { id: 'ovrigt', name: 'Övrigt', icon: '🎯', weekly: 400, type: 'spend', carry: true }
+  ];
+}
+function exampleFill(s) {
+  s.incomes = [
+    { id: uid(), name: 'Lön', amount: 28000, day: 25 },
+    { id: uid(), name: 'Övrigt', amount: 2000, day: 27 },
+    { id: uid(), name: 'Barnbidrag', amount: 1250, day: 20 }
+  ];
+  s.expenses = [
+    { id: uid(), name: 'Hyra', amount: 9500, freq: 'month', day: 28, month: 1 },
+    { id: uid(), name: 'El', amount: 1400, freq: 'month', day: 30, month: 1 },
+    { id: uid(), name: 'Mobil och bredband', amount: 650, freq: 'month', day: 28, month: 1 },
+    { id: uid(), name: 'Hemförsäkring', amount: 1650, freq: 'quarter', day: 1, month: 1 },
+    { id: uid(), name: 'Bilförsäkring', amount: 4200, freq: 'half', day: 15, month: 3 }
+  ];
+  const w = { mat: 1200, bensin: 350, spar: 300, ovrigt: 400 };
+  s.cats.forEach(c => { c.weekly = w[c.id] !== undefined ? w[c.id] : 0; });
+  return s;
+}
+function defaults() {
+  return {
+    payday: 25, spread: true, dayMode: 'rolling', dayFixed: 0, updatedAt: 0, tourDone: false, welcomed: false,
+    incomes: [],
+    expenses: [],
+    cats: defaultCats().map(c => ({ ...c, weekly: 0 })),
+    goals: [],
+    rewards: { on: true, milestones: [
+      { id: uid(), days: 3, text: 'Bra start' },
+      { id: uid(), days: 7, text: 'En vecka i rad. Unna dig något litet' },
+      { id: uid(), days: 14, text: 'Två veckor i rad' },
+      { id: uid(), days: 30, text: 'En hel månad. Dags för något extra' }
+    ] },
+    alerts: { on: true, threshold: 80 },
+    log: [], history: {},
+    profile: {
+      name: '', greeting: 'Hej', title: 'Min budget', currency: 'kr',
+      theme: 'skog', colors: { ...PRESETS.skog }, size: 0, radius: 14, font: 'system', density: 0, cardStyle: 'outline',
+      showIcons: false, navIcons: defaultNavIcons(), bg: { dim: 35, blur: 0, card: 92 },
+      startTab: 'hem', home: { today: true, rewards: true, goals: true, week: true, income: true, dist: true }
+    }
+  };
+}
+function normalize(o) {
+  const d = defaults(), p = o.profile || {};
+  const out = { ...d, ...o,
+    log: o.log || [], history: o.history || {},
+    rewards: { ...d.rewards, ...(o.rewards || {}) }, alerts: { ...d.alerts, ...(o.alerts || {}) },
+    profile: { ...d.profile, ...p, colors: { ...d.profile.colors, ...(p.colors || {}) }, navIcons: { ...d.profile.navIcons, ...(p.navIcons || {}) }, bg: { ...d.profile.bg, ...(p.bg || {}) }, home: { ...d.profile.home, ...(p.home || {}) } } };
+  if (!Array.isArray(o.cats)) {
+    const w = o.weekly || {}, lb = p.labels || {}, ico = p.icons || {};
+    out.cats = defaultCats().map(c => ({ ...c, name: ((lb[c.id] || '') + '').trim() || c.name, icon: ico[c.id] !== undefined ? ico[c.id] : c.icon, weekly: w[c.id] !== undefined ? num(w[c.id]) : c.weekly }));
+  }
+  if (!Array.isArray(o.goals)) {
+    const g = o.goal;
+    out.goals = (g && num(g.target) > 0) ? [{ id: uid(), name: g.name || 'Sparmål', target: num(g.target), saved: num(g.saved), weekly: num((o.weekly || {}).spar) }] : [];
+  }
+  return out;
+}
+function loadLocal() {
+  try { const r = localStorage.getItem(KEY); if (r) { const o = JSON.parse(r); if (o && o.incomes) return normalize(o); } } catch (e) {}
+  return null;
+}
+let S = loadLocal() || defaults();
+const P = () => S.profile;
+const catIcon = c => (P().showIcons && c.icon) ? c.icon + ' ' : '';
+const cl = c => catIcon(c) + c.name;
+const catById = id => S.cats.find(c => c.id === id);
+const catColor = id => { const i = S.cats.findIndex(c => c.id === id); return PALETTE[(i < 0 ? PALETTE.length - 1 : i) % (PALETTE.length - 1 || 1)]; };
+const spendCats = () => S.cats.filter(c => c.type === 'spend');
+
+/* ---------- spara och synka ---------- */
+function persist() {
+  let ok = true;
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { ok = false; }
+  const n = document.getElementById('saveNote');
+  if (n) n.textContent = ok ? 'Sparas också i den här webbläsaren.' : 'Det går inte att spara lokalt i den här vyn.';
+}
+function save() { S.updatedAt = Math.max(Date.now(), num(S.updatedAt) + 1); persist(); }
+function toast(t, actLabel, fn) {
+  const e = document.getElementById('toast'); e.textContent = t;
+  if (actLabel) {
+    const b = document.createElement('button'); b.className = 'tact'; b.textContent = actLabel;
+    b.addEventListener('click', () => { e.classList.remove('on'); e.style.pointerEvents = 'none'; fn(); });
+    e.appendChild(b); e.style.pointerEvents = 'auto';
+  } else e.style.pointerEvents = 'none';
+  e.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => { e.classList.remove('on'); e.style.pointerEvents = 'none'; }, actLabel ? 6000 : 2200);
+}
+function removeItem(getArr, id, after) {
+  const arr = getArr(), i = arr.findIndex(x => x.id === id); if (i < 0) return;
+  const [it] = arr.splice(i, 1);
+  save(); after(); update();
+  toast('Borttagen', 'Ångra', () => { const a = getArr(); a.splice(Math.min(i, a.length), 0, it); save(); after(); update(); });
+}
+
+/* ---------- utseende ---------- */
+function lum(h) {
+  const c = h.replace('#', ''); const f = i => { const v = parseInt(c.substr(i, 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(0) + 0.7152 * f(2) + 0.0722 * f(4);
+}
+function themeColors() {
+  const p = P();
+  if (p.theme === 'auto') { const dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches; return PRESETS[dark ? 'natt' : 'skog']; }
+  if (p.theme === 'egen') return p.colors;
+  return PRESETS[p.theme] || PRESETS.skog;
+}
+function setActive(sel, test) { document.querySelectorAll(sel).forEach(b => b.setAttribute('aria-pressed', !!test(b))); }
+function applyTheme() {
+  const c = themeColors(), p = P(), r = document.documentElement.style;
+  const light = h => lum(h) > 0.4;
+  r.setProperty('--bg', c.bg); r.setProperty('--card', c.card); r.setProperty('--accent', c.accent);
+  r.setProperty('--ink', light(c.card) ? '#17231f' : '#e8f0ec');
+  r.setProperty('--ink-bg', light(c.bg) ? '#17231f' : '#e8f0ec');
+  r.setProperty('--on-accent', light(c.accent) ? '#111111' : '#ffffff');
+  r.setProperty('--bad', light(c.card) ? '#c0392b' : '#ff8a7a');
+  r.setProperty('--r', p.radius + 'px');
+  r.setProperty('--font', FONTS[p.font] || FONTS.system);
+  r.fontSize = (16 * [1, 1.12, 1.25][p.size || 0]) + 'px';
+  document.body.dataset.dens = p.density; document.body.dataset.card = p.cardStyle;
+  document.getElementById('c-bg').value = c.bg; document.getElementById('c-card').value = c.card; document.getElementById('c-accent').value = c.accent;
+  setActive('#sws .sw', b => b.dataset.th === p.theme);
+  setActive('#sizeSeg button', b => Number(b.dataset.s) === p.size);
+  setActive('#fontSeg button', b => b.dataset.f === p.font);
+  setActive('#densSeg button', b => Number(b.dataset.d) === p.density);
+  setActive('#cardSeg button', b => b.dataset.c === p.cardStyle);
+  document.getElementById('hi').textContent = p.name ? (p.greeting || 'Hej') + ', ' + p.name + '!' : (p.title || 'Min budget');
+  document.title = (p.title || 'Min budget');
+}
+function renderSwatches() {
+  const items = [['auto', 'Följ enheten', 'linear-gradient(135deg,#f4f6f5 50%,#121917 50%)']]
+    .concat(Object.entries(PRESETS).map(([k, v]) => [k, v.n, `linear-gradient(135deg,${v.bg} 50%,${v.accent} 50%)`]));
+  document.getElementById('sws').innerHTML = items.map(([k, n, bg]) => `<button class="sw" data-th="${k}" style="background:${bg}"><span style="background:#ffffffcc;border-radius:6px;padding:1px 5px">${n}</span></button>`).join('');
+}
+function applyLabels() {
+  document.querySelectorAll('.nb').forEach(b => { const k = b.dataset.t; b.querySelector('.ic').textContent = P().showIcons ? (P().navIcons[k] || '') : ''; b.querySelector('.nl').textContent = NAV[k]; });
+}
+function renderIconInputs() {
+  let h = '<div class="grid s">';
+  Object.keys(NAV).forEach(k => { h += `<div><label>${NAV[k]}</label><input type="text" data-nk="${k}" maxlength="4" value="${esc(P().navIcons[k] || '')}" style="text-align:center;font-size:1.2rem"></div>`; });
+  document.getElementById('icInputs').innerHTML = h + '</div>';
+}
+
+/* ---------- bakgrundsfoto ---------- */
+const BGKEY = 'budgetapp-bg';
+let BG = { data: '', t: 0 }, bgRef = null;
+try { const r = localStorage.getItem(BGKEY); if (r) { const o = JSON.parse(r); if (o && typeof o.data === 'string') BG = { data: o.data, t: num(o.t) }; } } catch (e) {}
+function applyBg() {
+  const b = P().bg, has = !!BG.data, r = document.documentElement.style;
+  document.body.classList.toggle('has-bg', has);
+  const L = document.getElementById('bgLayer');
+  L.style.backgroundImage = has ? 'url("' + BG.data + '")' : 'none';
+  L.style.filter = b.blur ? 'blur(' + b.blur + 'px)' : 'none';
+  L.style.transform = b.blur ? 'scale(1.08)' : 'none';
+  r.setProperty('--dim', String(b.dim / 100)); r.setProperty('--cardpct', b.card + '%');
+  const th = document.getElementById('bgThumb');
+  th.style.display = has ? '' : 'none'; th.style.backgroundImage = has ? 'url("' + BG.data + '")' : 'none';
+  document.getElementById('bgRemove').style.display = has ? '' : 'none';
+  document.getElementById('bgCtl').style.display = has ? '' : 'none';
+  document.getElementById('bgPick').textContent = has ? 'Byt foto' : 'Välj foto';
+  document.getElementById('bg-dim').value = b.dim; document.getElementById('bg-blur').value = b.blur; document.getElementById('bg-card').value = b.card;
+}
+function setBg(data, t, push) {
+  BG = { data, t };
+  try { localStorage.setItem(BGKEY, JSON.stringify(BG)); } catch (e) {}
+  applyBg();
+}
+function compressImage(file) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = rej;
+      img.onload = () => {
+        let max = 1000, q = 0.72, out = '';
+        for (let i = 0; i < 7; i++) {
+          const sc = Math.min(1, max / Math.max(img.width, img.height));
+          const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          out = c.toDataURL('image/jpeg', q);
+          if (out.length < 170000) break;
+          max *= 0.8; q = Math.max(0.4, q - 0.06);
+        }
+        res(out);
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+document.getElementById('bgPick').addEventListener('click', () => document.getElementById('bgFile').click());
+document.getElementById('bgFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  try { toast('Läser in fotot…'); const d = await compressImage(f); setBg(d, Date.now(), true); toast('Bakgrunden är bytt'); }
+  catch (err) { toast('Fotot kunde inte läsas in'); }
+  e.target.value = '';
+});
+document.getElementById('bgRemove').addEventListener('click', () => { setBg('', Date.now(), true); toast('Fotot är borttaget'); });
+[['bg-dim', 'dim'], ['bg-blur', 'blur'], ['bg-card', 'card']].forEach(([id, k]) => document.getElementById(id).addEventListener('input', e => { P().bg[k] = Number(e.target.value); save(); applyBg(); }));
+
+/* ---------- datum ---------- */
+function dateIn(y, m, d) {
+  const first = new Date(y, m, 1);
+  const dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  return new Date(first.getFullYear(), first.getMonth(), Math.min(Math.max(1, d), dim));
+}
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const diffDays = (a, b) => Math.round((a - b) / 864e5);
+const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const parseIso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const dl = d => d.getDate() + ' ' + MON[d.getMonth()];
+const dlIso = s => dl(parseIso(s));
+const steps = f => f === 'quarter' ? 3 : f === 'half' ? 6 : 1;
+
+function occ(it, start, end) {
+  const st = steps(it.freq), res = [];
+  for (let k = 0; k < 2; k++) {
+    const d = dateIn(start.getFullYear(), start.getMonth() + k, it.day);
+    if (d < start || d >= end) continue;
+    if (st > 1) { const diff = (((d.getMonth() - (it.month - 1)) % st) + st) % st; if (diff !== 0) continue; }
+    res.push(d);
+  }
+  return res;
+}
+const sumLog = (a, b, cat) => S.log.filter(l => l.date >= a && l.date < b && (!cat || l.cat === cat)).reduce((s, l) => s + num(l.amount), 0);
+
+/* ---------- beräkning ---------- */
+function model() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayIso = iso(today);
+  const p = Math.min(31, Math.max(1, Math.round(num(S.payday)) || 25));
+  let start = dateIn(today.getFullYear(), today.getMonth(), p);
+  if (start > today) start = dateIn(today.getFullYear(), today.getMonth() - 1, p);
+  const end = dateIn(start.getFullYear(), start.getMonth() + 1, p);
+  const sIso = iso(start), eIso = iso(end);
+  const daysTotal = diffDays(end, start);
+  const daysLeft = Math.max(1, diffDays(end, today));
+
+  const incRows = [];
+  S.incomes.forEach(it => occ({ ...it, freq: 'month' }, start, end).forEach(d => incRows.push({ name: it.name, amount: num(it.amount), date: d })));
+  incRows.sort((a, b) => a.date - b.date);
+  const income = incRows.reduce((s, r) => s + r.amount, 0);
+
+  const groups = { month: { sum: 0, names: [] }, quarter: { sum: 0, names: [] }, half: { sum: 0, names: [] } };
+  S.expenses.forEach(it => {
+    const st = steps(it.freq);
+    const amt = S.spread ? num(it.amount) / st : num(it.amount) * occ(it, start, end).length;
+    if (amt > 0) { groups[it.freq].sum += amt; groups[it.freq].names.push(it.name); }
+  });
+  const expTotal = groups.month.sum + groups.quarter.sum + groups.half.sum;
+  const pool = income - expTotal;
+
+  const spentBy = {};
+  S.cats.forEach(c => { spentBy[c.id] = sumLog(sIso, eIso, c.id); });
+  const spent = sumLog(sIso, eIso);
+  const perDayLeft = (pool - spent) / daysLeft;
+
+  const days = [];
+  let spentBefore = 0, carryD = 0;
+  for (let i = 0; i < daysTotal; i++) {
+    const d = addDays(start, i), a = iso(d);
+    const sp = sumLog(a, iso(addDays(d, 1)));
+    const allow = S.dayMode === 'fixed' ? num(S.dayFixed) + carryD : (pool - spentBefore) / (daysTotal - i);
+    const done = d < today, isToday = d.getTime() === today.getTime();
+    days.push({ d, iso: a, allow, spent: sp, left: allow - sp, done, isToday });
+    spentBefore += sp; carryD = done ? allow - sp : 0;
+  }
+  const td = days.find(x => x.isToday) || days[days.length - 1];
+  const allowToday = td ? td.allow : 0, spentToday = td ? td.spent : 0;
+
+  // dagar i rad under dagsbudget
+  const firstLog = S.log.reduce((mn, l) => (!mn || l.date < mn) ? l.date : mn, '');
+  const doneDays = days.filter(x => x.done && firstLog && x.iso >= firstLog);
+  let trail = 0;
+  for (let i = doneDays.length - 1; i >= 0; i--) { if (doneDays[i].spent <= Math.max(0, doneDays[i].allow) + 0.5) trail++; else break; }
+  const prev = Object.values(S.history).find(h => h.end === sIso);
+  const streak = trail + (firstLog && firstLog <= sIso && trail === days.filter(x => x.done).length && prev ? num(prev.streakEnd) : 0);
+
+  const weeks = [];
+  const carries = {};
+  let plannedTotal = 0;
+  for (let i = 0; ; i++) {
+    const ws = addDays(start, 7 * i);
+    if (ws >= end) break;
+    const we7 = addDays(ws, 7), we = we7 > end ? end : we7;
+    const d = diffDays(we, ws), f = d / 7;
+    const a = iso(ws), b = iso(we);
+    const done = we <= today, now = ws <= today && today < we;
+    const rows = S.cats.map(c => {
+      const base = num(c.weekly) * f;
+      const isSpend = c.type === 'spend';
+      const used = isSpend ? sumLog(a, b, c.id) : 0;
+      const cin = (isSpend && c.carry) ? (carries[c.id] || 0) : 0;
+      const avail = base + cin;
+      return { c, base, used, cin, avail, left: avail - used, carry: isSpend && c.carry };
+    });
+    rows.forEach(x => { carries[x.c.id] = (x.carry && done) ? x.left : 0; plannedTotal += x.base; });
+    weeks.push({ i, ws, we, d, rows, done, now });
+  }
+  return { today, todayIso, start, end, sIso, eIso, daysTotal, daysLeft, incRows, income, groups, expTotal, pool, spentBy, spent, spentToday, allowToday, perDayLeft, days, weeks, plannedTotal, streak };
+}
+
+/* ---------- varningar ---------- */
+function alertsFor(m) {
+  const A = S.alerts; if (!A.on) return [];
+  const t = Math.min(1, Math.max(0.5, num(A.threshold) / 100 || 0.8)), out = [];
+  if (m.allowToday > 0) {
+    const r = m.spentToday / m.allowToday;
+    if (r > 1) out.push({ lv: 'warn', t: `Du har gått över dagens budget med ${fmt(m.spentToday - m.allowToday)}.` });
+    else if (r >= t && m.spentToday > 0) out.push({ lv: 'caution', t: `Du har använt ${Math.round(r * 100)} % av dagens budget. ${fmt(m.allowToday - m.spentToday)} kvar idag.` });
+  } else if (m.spentToday > 0) out.push({ lv: 'warn', t: 'Det finns ingen dagsbudget kvar idag.' });
+  const cw = m.weeks.find(w => w.now);
+  if (cw) cw.rows.forEach(x => {
+    if (x.c.type !== 'spend' || x.avail <= 0 || x.used <= 0) return;
+    const r = x.used / x.avail;
+    if (r > 1) out.push({ lv: 'warn', t: `${x.c.name}: du är ${fmt(x.used - x.avail)} över veckans budget.` });
+    else if (r >= t) out.push({ lv: 'caution', t: `${x.c.name}: ${Math.round(r * 100)} % av veckans budget är använd (${fmt(x.avail - x.used)} kvar).` });
+  });
+  if (m.pool - m.spent < 0) out.push({ lv: 'warn', t: 'Du har använt mer än du har kvar den här perioden.' });
+  else {
+    const elapsed = m.daysTotal - m.daysLeft + 1;
+    if (elapsed >= 3 && m.pool > 0 && m.spent > 0) {
+      const proj = m.spent / elapsed * m.daysTotal;
+      if (proj > m.pool) out.push({ lv: 'caution', t: `I den här takten går du över budget med ca ${fmt(proj - m.pool)} till nästa lön.` });
+    }
+  }
+  return out;
+}
+const alertsHtml = m => alertsFor(m).map(a => `<div class="note ${a.lv}">${esc(a.t)}</div>`).join('');
+
+/* ---------- Hem ---------- */
+function todayCardHtml(m) {
+  const left = m.allowToday - m.spentToday;
+  const pct = m.allowToday > 0 ? Math.min(100, m.spentToday / m.allowToday * 100) : (m.spentToday > 0 ? 100 : 0);
+  return `<div class="card"><h2>Idag</h2>
+    <div class="row"><span>Du kan använda idag</span><span><b>${fmt(m.allowToday)}</b></span></div>
+    <div class="row"><span>Använt hittills idag</span><span>${fmt(m.spentToday)}</span></div>
+    <div class="pbar"><i class="${left < 0 ? 'over' : ''}" style="width:${pct}%"></i></div>
+    <div class="total"><span>Kvar idag</span><span class="${left < 0 ? 'neg' : 'ok'}">${fmt(left)}</span></div></div>`;
+}
+function rewardsHtml(m) {
+  const R = S.rewards; if (!R.on) return '';
+  const ms = R.milestones.filter(x => num(x.days) > 0).map(x => ({ days: num(x.days), text: x.text || '' })).sort((a, b) => a.days - b.days);
+  const st = m.streak;
+  const reached = ms.filter(x => st >= x.days), next = ms.find(x => st < x.days);
+  let h = `<div class="card"><h2>Mina belöningar<button class="lnk" data-go="profil">Ändra ›</button></h2><div><span class="mid ${st > 0 ? 'ok' : ''}">${st}</span> <span class="lbl">${st === 1 ? 'dag' : 'dagar'} i rad under dagsbudget</span></div>`;
+  if (next) h += `<div class="pbar"><i style="width:${Math.min(100, st / next.days * 100)}%"></i></div><p class="lbl" style="margin:0">${plural(next.days - st, 'dag', 'dagar')} kvar till: ${esc(next.text)}</p>`;
+  else if (ms.length) h += '<p class="lbl">Du har nått alla dina belöningar. Lägg till nya under Profil.</p>';
+  else h += '<p class="lbl">Lägg till egna belöningar under Profil.</p>';
+  if (reached.length) { const last = reached[reached.length - 1]; h += `<div class="note">Senaste belöning: <b>${esc(last.text)}</b> (${last.days} dagar i rad)</div>`; }
+  const badges = reached.map(x => `${x.days} dagar i rad`);
+  S.goals.forEach(g => { if (num(g.target) > 0 && num(g.saved) >= num(g.target)) badges.push('Mål nått: ' + g.name); });
+  const plus = Object.values(S.history).filter(x => x.start !== m.sIso && x.pool - x.spent > 0).length;
+  if (plus) badges.push(plural(plus, 'period i plus', 'perioder i plus'));
+  if (badges.length) h += '<div class="badges">' + badges.map(b => `<span class="badge">${esc(b)}</span>`).join('') + '</div>';
+  return h + '</div>';
+}
+function goalsHtml() {
+  const gs = S.goals.filter(g => num(g.target) > 0);
+  if (!gs.length) return '';
+  const q = [100, 500, 1000];
+  return gs.map(g => {
+    const pc = Math.min(100, num(g.saved) / num(g.target) * 100), rest = Math.max(0, num(g.target) - num(g.saved));
+    const wks = num(g.weekly) > 0 && rest > 0 ? Math.ceil(rest / num(g.weekly)) : 0;
+    return `<div class="card"><h2>Sparmål: ${esc(g.name || 'Mål')}<button class="lnk" data-go="planera:goal">Ändra ›</button></h2>
+      <div class="row"><span>Sparat</span><span><b>${fmt(num(g.saved))}</b> av ${fmt(num(g.target))}</span></div>
+      <div class="pbar"><i style="width:${pc}%"></i></div>
+      <p class="lbl" style="margin:0 0 8px">${rest <= 0 ? 'Målet är nått!' : (wks ? `Med ${fmt(num(g.weekly))} i veckan är du framme om ca ${plural(wks, 'vecka', 'veckor')}.` : `${fmt(rest)} kvar till målet.`)}</p>
+      <div class="chips">${q.map(a => `<button class="btn ghost sm" data-gadd="${g.id}|${a}">+${a.toLocaleString('sv-SE')}</button>`).join('')}</div></div>`;
+  }).join('');
+}
+function weekCardRows(w) {
+  return w.rows.map(x => {
+    const sub = x.c.type === 'spend' ? `<small>använt ${fmt(x.used)}${x.cin ? `, inkl. ${fmt(x.cin)} från tidigare` : ''}</small>` : '';
+    return `<div class="row"><span>${esc(cl(x.c))} ${sub}</span><span><b>${fmt(x.avail)}</b></span></div>`;
+  }).join('') + w.rows.filter(x => x.carry).map(x => `<p class="lbl" style="margin:6px 0 0">Kvar av ${esc(x.c.name.toLowerCase())}${w.done ? ' (flyttades till nästa vecka)' : (w.now ? ' just nu' : '')}: <b class="${x.left < 0 ? 'neg' : 'ok'}">${fmt(x.left)}</b></p>`).join('');
+}
+function renderOverview(m) {
+  document.getElementById('periodLine').textContent = dl(m.start) + ' – ' + dl(addDays(m.end, -1)) + ' · nästa lön ' + dl(m.end) + ' (om ' + m.daysLeft + (m.daysLeft === 1 ? ' dag)' : ' dagar)');
+  const H = P().home, neg = m.pool < 0;
+  let h = alertsHtml(m) + tourHtml();
+  h += `<div class="card hero">
+    <div class="lbl">Kvar när allt är betalt och draget</div>
+    <div class="big ${neg ? 'neg' : 'ok'}">${fmt(m.pool)}</div>
+    <div class="two">
+      <div><div class="lbl">Per dag till nästa lön</div><div class="mid ${m.perDayLeft < 0 ? 'neg' : 'ok'}">${fmt(m.perDayLeft)}</div><div class="lbl">${m.daysLeft} dagar kvar</div></div>
+      <div><div class="lbl">Kvar att använda</div><div class="mid ${m.pool - m.spent < 0 ? 'neg' : ''}">${fmt(m.pool - m.spent)}</div><div class="lbl">efter ${fmt(m.spent)} använt</div></div>
+    </div>
+    ${neg ? '<div class="note warn" style="text-align:left">Utgifterna är större än inkomsterna den här perioden. Titta över dem under Planera.</div>' : ''}
+  </div>`;
+  h += `<div class="qa"><button class="btn" data-go="logga">Logga utgift</button><button class="btn ghost" data-go="veckor:days">Dagsbudget</button><button class="btn ghost" data-go="historia:rep">Rapport</button></div>`;
+  if (H.today) h += todayCardHtml(m);
+  if (H.rewards) h += rewardsHtml(m);
+  if (H.goals) h += goalsHtml();
+  const cw = m.weeks.find(w => w.now) || m.weeks[m.weeks.length - 1];
+  if (H.week && cw) h += `<div class="card"><h2>Den här veckan (${dl(cw.ws)} – ${dl(addDays(cw.we, -1))})<button class="lnk" data-go="veckor:weeks">Alla veckor ›</button></h2>${weekCardRows(cw)}</div>`;
+
+  const cols = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--accent)'];
+  if (H.income) {
+    let run = 0;
+    h += `<div class="card"><h2>Inkomster, uppstaplade</h2>`;
+    if (m.income > 0) h += '<div class="bar">' + m.incRows.map((r, i) => `<i style="width:${r.amount / m.income * 100}%;background:${cols[i % 4]}"></i>`).join('') + '</div>';
+    m.incRows.forEach((r, i) => {
+      run += r.amount;
+      h += `<div class="row"><span><span class="dot" style="background:${cols[i % 4]}"></span>${esc(r.name)} <small>${dl(r.date)}</small></span><span>+${fmt(r.amount)} <small>(${fmt(run)})</small></span></div>`;
+    });
+    h += `<div class="total"><span>Totalt</span><span>${fmt(m.income)}</span></div></div>`;
+  }
+  if (H.dist) {
+    const gr = m.groups;
+    const gl = [['month', 'Varje månad', 'var(--e1)'], ['quarter', 'Kvartal', 'var(--e2)'], ['half', 'Halvår', 'var(--e3)']];
+    const base = Math.max(m.income, m.expTotal, 1);
+    h += `<div class="card"><h2>Så fördelas pengarna</h2><div class="bar">`;
+    gl.forEach(([k, , c]) => { h += `<i style="width:${gr[k].sum / base * 100}%;background:${c}"></i>`; });
+    if (m.pool > 0) h += `<i style="width:${m.pool / base * 100}%;background:var(--accent)"></i>`;
+    h += '</div>';
+    gl.forEach(([k, name, c]) => {
+      h += `<div class="row"><span><span class="dot" style="background:${c}"></span>${name}${gr[k].names.length ? `<br><small>${gr[k].names.map(esc).join(', ')}</small>` : ''}</span><span>−${fmt(gr[k].sum)}</span></div>`;
+    });
+    h += `<div class="row"><span><span class="dot" style="background:var(--accent)"></span><b>Kvar</b></span><span class="${neg ? 'neg' : 'ok'}"><b>${fmt(m.pool)}</b></span></div>`;
+    if (S.spread && (gr.quarter.sum || gr.half.sum)) h += '<p class="lbl" style="margin-bottom:0">Kvartal och halvår är utspridda över månaderna, så beloppet är din månadsandel.</p>';
+    h += '</div>';
+  }
+  document.getElementById('ov').innerHTML = h;
+}
+function tourHtml() {
+  if (S.tourDone) return '';
+  const st = [
+    [S.incomes.some(i => num(i.amount) > 0), 'Lägg in dina inkomster', 'planera:inc'],
+    [S.expenses.some(i => num(i.amount) > 0), 'Lägg in utgifter och autogiro', 'planera:exp'],
+    [S.log.length > 0, 'Logga din första utgift', 'logga'],
+    [P().theme !== 'skog' || !!BG.data || !!P().name, 'Gör appen personlig', 'profil']
+  ];
+  return `<div class="card"><h2>Kom igång<button class="lnk" data-tour="hide">Dölj</button></h2>
+    <p class="lbl" style="margin-top:0">Fyll i dina uppgifter i tur och ordning, så räknas resten ut åt dig.</p>
+    ${st.map((s, i) => `<div class="step${s[0] ? ' done' : ''}"><span class="n">${s[0] ? '✓' : i + 1}</span><span class="t">${s[1]}</span><button class="btn ghost sm" data-go="${s[2]}">Öppna</button></div>`).join('')}</div>`;
+}
+function go(tab, sub) {
+  showTab(tab);
+  if (sub) { const b = document.querySelector(`#s-${tab} .seg [data-v="${sub}"],#s-${tab} .seg [data-sub="${sub}"],#s-${tab} .seg [data-h="${sub}"]`); if (b) b.click(); }
+}
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]');
+  if (g) { const [t, s] = g.dataset.go.split(':'); go(t, s); return; }
+  const h = e.target.closest('[data-tour]');
+  if (h) { S.tourDone = true; save(); update(); }
+});
+document.getElementById('ov').addEventListener('click', e => {
+  const b = e.target.closest('[data-gadd]'); if (!b) return;
+  const [id, a] = b.dataset.gadd.split('|'); const g = S.goals.find(x => x.id === id); if (!g) return;
+  g.saved = num(g.saved) + num(a); save(); update(); renderGoals();
+  toast(num(g.saved) >= num(g.target) && num(g.target) > 0 ? 'Målet är nått!' : 'Lagt till ' + fmt(num(a)));
+});
+
+/* ---------- Logga ---------- */
+let logCat = '';
+function renderChips() {
+  const sc = spendCats();
+  if (!sc.find(c => c.id === logCat)) logCat = sc[0] ? sc[0].id : '';
+  document.getElementById('l-cats').innerHTML = sc.map(c => `<button class="chip" data-c="${c.id}" aria-pressed="${c.id === logCat}">${esc(cl(c))}</button>`).join('') || '<p class="lbl">Lägg till en utgiftskategori under Vecka/dag → Kategorier.</p>';
+}
+let quickList = [];
+function renderQuick() {
+  const seen = new Set(); quickList = [];
+  for (let i = S.log.length - 1; i >= 0 && quickList.length < 6; i--) {
+    const l = S.log[i], c = catById(l.cat); if (!c || c.type !== 'spend') continue;
+    const k = l.cat + '|' + (l.note || '') + '|' + l.amount;
+    if (seen.has(k)) continue; seen.add(k); quickList.push(l);
+  }
+  document.getElementById('quickWrap').style.display = quickList.length ? '' : 'none';
+  document.getElementById('quick').innerHTML = quickList.map((l, i) => `<button data-qi="${i}">${esc(l.note || catById(l.cat).name)} · ${fmt(l.amount)}</button>`).join('');
+}
+document.getElementById('quick').addEventListener('click', e => {
+  const b = e.target.closest('[data-qi]'); if (!b) return;
+  const l = quickList[Number(b.dataset.qi)]; if (!l) return;
+  logNow(num(l.amount), l.cat, l.note, 0);
+});
+['l-amount', 'l-note'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('l-save').click(); }));
+function renderLog(m) {
+  renderQuick();
+  document.getElementById('warnLog').innerHTML = alertsHtml(m);
+  document.getElementById('todayCard').innerHTML = todayCardHtml(m);
+  const rows = S.log.map((l, idx) => ({ l, idx })).filter(x => x.l.date >= m.sIso && x.l.date < m.eIso);
+  rows.sort((a, b) => b.l.date.localeCompare(a.l.date) || b.idx - a.idx);
+  let h = '', last = '';
+  rows.forEach(({ l }) => {
+    if (l.date !== last) { last = l.date; h += `<div class="dayh">${l.date === m.todayIso ? 'Idag' : dlIso(l.date)}</div>`; }
+    const c = catById(l.cat);
+    h += `<div class="logrow"><span class="t">${esc(l.note || (c ? c.name : 'Borttagen kategori'))}<br><small class="lbl">${esc(c ? cl(c) : 'Borttagen kategori')}</small></span><b>${fmt(l.amount)}</b><button class="x" data-del="${l.id}" aria-label="Ta bort">✕</button></div>`;
+  });
+  document.getElementById('logList').innerHTML = h || '<p class="lbl">Inga utgifter loggade än i den här perioden.</p>';
+}
+
+/* ---------- Planera ---------- */
+function effText(it) {
+  const st = steps(it.freq), a = num(it.amount);
+  if (st === 1) return 'Dras varje månad den ' + it.day + ':e';
+  const per = st === 3 ? 'kvartal' : 'halvår';
+  const months = []; for (let k = 0; k < 12 / st; k++) months.push(MON[((it.month - 1) + k * st) % 12]);
+  return fmt(a) + ' per ' + per + ' · ' + fmt(a / st) + ' i månaden · dras ' + months.join(', ');
+}
+function renderIncomes() {
+  document.getElementById('incList').innerHTML = S.incomes.map(it => `
+    <div class="item" data-id="${it.id}">
+      <div class="head"><div><label>Namn</label><input type="text" data-f="name" value="${esc(it.name)}"></div>
+      <button class="btn del" data-del="${it.id}">Ta bort</button></div>
+      <div class="grid">
+        <div><label>Belopp</label><input type="number" inputmode="decimal" data-f="amount" value="${it.amount}"></div>
+        <div><label>Dag i månaden</label><input type="number" inputmode="numeric" min="1" max="31" data-f="day" value="${it.day}"></div>
+      </div>
+    </div>`).join('') || '<p class="lbl">Inga inkomster ännu.</p>';
+}
+function renderExpenses() {
+  document.getElementById('expList').innerHTML = S.expenses.map(it => `
+    <div class="item" data-id="${it.id}">
+      <div class="head"><div><label>Namn</label><input type="text" data-f="name" value="${esc(it.name)}"></div>
+      <button class="btn del" data-del="${it.id}">Ta bort</button></div>
+      <div class="grid">
+        <div><label>Belopp</label><input type="number" inputmode="decimal" data-f="amount" value="${it.amount}"></div>
+        <div><label>Hur ofta</label><select data-f="freq">
+          <option value="month"${it.freq === 'month' ? ' selected' : ''}>Varje månad</option>
+          <option value="quarter"${it.freq === 'quarter' ? ' selected' : ''}>Varje kvartal</option>
+          <option value="half"${it.freq === 'half' ? ' selected' : ''}>Varje halvår</option></select></div>
+        <div><label>Dag</label><input type="number" inputmode="numeric" min="1" max="31" data-f="day" value="${it.day}"></div>
+        ${it.freq !== 'month' ? `<div><label>Första dragning i</label><select data-f="month">${MONTHS.map((n, i) => `<option value="${i + 1}"${it.month === i + 1 ? ' selected' : ''}>${n}</option>`).join('')}</select></div>` : ''}
+      </div>
+      <div class="eff">${effText(it)}</div>
+    </div>`).join('') || '<p class="lbl">Inga utgifter ännu.</p>';
+}
+function renderGoals() {
+  const el = document.getElementById('goalList'); if (!el) return;
+  if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return; // skriver just nu
+  el.innerHTML = S.goals.map(g => `
+    <div class="item" data-id="${g.id}">
+      <div class="head"><div><label>Vad sparar du till?</label><input type="text" data-f="name" value="${esc(g.name)}" placeholder="t.ex. Semester"></div>
+      <button class="btn del" data-del="${g.id}">Ta bort</button></div>
+      <div class="grid">
+        <div><label>Målbelopp</label><input type="number" inputmode="decimal" data-f="target" value="${g.target || ''}"></div>
+        <div><label>Sparat hittills</label><input type="number" inputmode="decimal" data-f="saved" value="${g.saved || ''}"></div>
+        <div><label>Sparar per vecka</label><input type="number" inputmode="decimal" data-f="weekly" value="${g.weekly || ''}"></div>
+      </div>
+    </div>`).join('') || '<p class="lbl">Inga sparmål ännu.</p>';
+}
+function bindList(el, arrName, rerender) {
+  el.addEventListener('input', e => {
+    const t = e.target, row = t.closest('.item');
+    if (!row || !t.dataset.f) return;
+    const it = S[arrName].find(x => x.id === row.dataset.id); if (!it) return;
+    const f = t.dataset.f;
+    it[f] = (f === 'name' || f === 'freq') ? t.value : (f === 'month' || f === 'day') ? Math.round(num(t.value)) || 1 : num(t.value);
+    save();
+    if (f === 'freq') rerender(); else { const eff = row.querySelector('.eff'); if (eff && arrName === 'expenses') eff.textContent = effText(it); }
+    update();
+  });
+  el.addEventListener('click', e => {
+    const id = e.target.dataset && e.target.dataset.del; if (!id) return;
+    removeItem(() => S[arrName], id, rerender);
+  });
+}
+
+/* ---------- Kategorier ---------- */
+function renderCats() {
+  document.getElementById('catList').innerHTML = S.cats.map((c, i) => `
+    <div class="item" data-id="${c.id}">
+      <div class="head"><div><label><span class="dot" style="background:${PALETTE[i % (PALETTE.length - 1)]}"></span>Namn</label><input type="text" data-f="name" value="${esc(c.name)}"></div>
+      <button class="btn del" data-del="${c.id}">Ta bort</button></div>
+      <div class="grid">
+        <div><label>Per vecka</label><input type="number" inputmode="decimal" data-f="weekly" value="${c.weekly}"></div>
+        <div><label>Typ</label><select data-f="type"><option value="spend"${c.type === 'spend' ? ' selected' : ''}>Utgift</option><option value="save"${c.type === 'save' ? ' selected' : ''}>Sparande</option></select></div>
+        <div><label>Ikon (valfri)</label><input type="text" data-f="icon" maxlength="4" value="${esc(c.icon || '')}" style="text-align:center;font-size:1.2rem"></div>
+      </div>
+      ${c.type === 'spend' ? `<label class="chk"><input type="checkbox" data-f="carry"${c.carry ? ' checked' : ''}><span>Flytta över det som blir kvar till nästa vecka</span></label>` : ''}
+    </div>`).join('') || '<p class="lbl">Inga kategorier ännu.</p>';
+}
+(function () {
+  const el = document.getElementById('catList');
+  const handle = e => {
+    const t = e.target, row = t.closest('.item'); if (!row || !t.dataset.f) return;
+    const c = catById(row.dataset.id); if (!c) return;
+    const f = t.dataset.f;
+    if (f === 'carry') c.carry = t.checked;
+    else if (f === 'weekly') c.weekly = num(t.value);
+    else c[f] = t.value;
+    if (f === 'icon' && t.value.trim() && !P().showIcons) { P().showIcons = true; document.getElementById('pf-showic').checked = true; applyLabels(); }
+    save();
+    if (f === 'type' && e.type === 'change') renderCats();
+    update();
+  };
+  el.addEventListener('input', e => { if (e.target.dataset.f !== 'type' && e.target.dataset.f !== 'carry') handle(e); });
+  el.addEventListener('change', e => { if (e.target.dataset.f === 'type' || e.target.dataset.f === 'carry') handle(e); });
+  el.addEventListener('click', e => {
+    const id = e.target.dataset && e.target.dataset.del; if (!id) return;
+    removeItem(() => S.cats, id, renderCats);
+  });
+})();
+
+/* ---------- Veckor ---------- */
+function renderWeeks(m) {
+  document.getElementById('weeks').innerHTML = m.weeks.map(w => `
+    <div class="card week${w.now ? ' now' : ''}">
+      <h2>Vecka ${w.i + 1} · ${dl(w.ws)} – ${dl(addDays(w.we, -1))} <small>(${w.d} dagar)</small>${w.now ? '<span class="tag">NU</span>' : ''}</h2>
+      ${weekCardRows(w)}
+    </div>`).join('');
+  const diff = m.pool - m.plannedTotal;
+  document.getElementById('wkCheck').innerHTML = `<div class="card"><div class="note ${diff < 0 ? 'warn' : ''}" style="margin:0">Planerat för perioden: <b>${fmt(m.plannedTotal)}</b> av <b>${fmt(m.pool)}</b> kvar.<br>${diff >= 0 ? 'Oplanerat: <b>' + fmt(diff) + '</b>' : 'Du har planerat <b>' + fmt(-diff) + '</b> mer än du har.'}<br><span class="lbl">Ändra veckobelopp under Kategorier.</span></div></div>`;
+}
+
+/* ---------- Dagar ---------- */
+function renderDays(m) {
+  const fixed = S.dayMode === 'fixed';
+  setActive('#dmSeg button', b => b.dataset.m === S.dayMode);
+  document.getElementById('dmFixedWrap').style.display = fixed ? '' : 'none';
+  document.getElementById('dmHelp').textContent = fixed
+    ? 'Du bestämmer ett belopp per dag. Det du inte använder en dag flyttas till nästa, precis som med veckorna.'
+    : 'Det som är kvar delas lika på alla dagar som återstår. Använder du mindre idag blir morgondagens belopp större.';
+  const total = fixed ? num(S.dayFixed) * m.daysTotal : 0;
+  document.getElementById('dayCheck').innerHTML = fixed ? `<div class="note ${total > m.pool ? 'warn' : ''}">${fmt(num(S.dayFixed))} × ${m.daysTotal} dagar = <b>${fmt(total)}</b> av <b>${fmt(m.pool)}</b> kvar.</div>` : '';
+  let h = '<div class="drow h"><span>Dag</span><span>Budget</span><span>Använt</span><span>Kvar</span></div>';
+  m.days.forEach(x => {
+    h += `<div class="drow${x.done ? ' done' : ''}${x.isToday ? ' today' : ''}"><span>${WD[x.d.getDay()]} ${dl(x.d)}</span><span>${fmt(x.allow)}</span><span>${x.spent ? fmt(x.spent) : '–'}</span><span class="${x.left < 0 ? 'neg' : ''}">${fmt(x.left)}</span></div>`;
+  });
+  document.getElementById('dayList').innerHTML = h;
+}
+
+/* ---------- Historia ---------- */
+function snapshot(m) {
+  const by = S.cats.filter(c => c.type === 'spend' && m.spentBy[c.id] > 0).map(c => [c.name, Math.round(m.spentBy[c.id])]);
+  const known = Object.values(m.spentBy).reduce((s, v) => s + v, 0);
+  if (m.spent - known > 0.5) by.push(['Övrigt (borttagna kategorier)', Math.round(m.spent - known)]);
+  const snap = { start: m.sIso, end: m.eIso, income: Math.round(m.income), exp: Math.round(m.expTotal), pool: Math.round(m.pool), spent: Math.round(m.spent), by, streakEnd: m.streak };
+  if (JSON.stringify(S.history[m.sIso]) !== JSON.stringify(snap)) { S.history[m.sIso] = snap; persist(); }
+}
+const histList = () => Object.values(S.history).sort((a, b) => b.start.localeCompare(a.start));
+const byOf = x => x.by || [['Mat', x.mat || 0], ['Bensin', x.bensin || 0], ['Övrigt', x.ovrigt || 0]].filter(v => v[1] > 0);
+function renderHistory(m) {
+  const list = histList(), past = list.filter(x => x.start !== m.sIso);
+  let h = '';
+  if (past.length) {
+    const tot = past.reduce((s, x) => s + (x.pool - x.spent), 0);
+    h += `<div class="card hero"><div class="lbl">Över eller under budget totalt (${plural(past.length, 'period', 'perioder')})</div>
+      <div class="big ${tot < 0 ? 'neg' : 'ok'}">${tot >= 0 ? '+' : ''}${fmt(tot)}</div>
+      <div class="lbl">Snitt per period: ${fmt(tot / past.length)}</div></div>`;
+  }
+  list.forEach(x => {
+    const res = x.pool - x.spent, cur = x.start === m.sIso;
+    const pct = x.pool > 0 ? Math.min(100, x.spent / x.pool * 100) : (x.spent > 0 ? 100 : 0);
+    const by = byOf(x);
+    h += `<div class="card"><h2>${dlIso(x.start)} – ${dl(addDays(parseIso(x.end), -1))}${cur ? '<span class="tag">PÅGÅR</span>' : ''}</h2>
+      <div class="row"><span>Inkomster</span><span>+${fmt(x.income)}</span></div>
+      <div class="row"><span>Utgifter och autogiro</span><span>−${fmt(x.exp)}</span></div>
+      <div class="row"><span>Kvar efter räkningar</span><span><b>${fmt(x.pool)}</b></span></div>
+      <div class="row"><span>Använt${by.length ? ` <small>(${by.map(v => esc(v[0].toLowerCase()) + ' ' + fmt(v[1])).join(', ')})</small>` : ''}</span><span>−${fmt(x.spent)}</span></div>
+      <div class="pbar"><i class="${res < 0 ? 'over' : ''}" style="width:${pct}%"></i></div>
+      <div class="total"><span>${cur ? 'Kvar hittills' : (res >= 0 ? 'Blev över' : 'Gick över budget')}</span><span class="${res < 0 ? 'neg' : 'ok'}">${fmt(res)}</span></div></div>`;
+  });
+  if (!past.length) h += '<div class="note">Tidigare perioder dyker upp här efter nästa lönedag. Det som loggas nu sparas automatiskt.</div>';
+  document.getElementById('hist').innerHTML = h;
+}
+
+/* ---------- Rapport ---------- */
+let rpKey = '';
+function donut(parts) {
+  const R = 42, C = 2 * Math.PI * R, tot = parts.reduce((s, p) => s + p.v, 0);
+  if (tot <= 0) return '';
+  let off = 0;
+  let svg = '<svg viewBox="0 0 120 120" width="150" height="150" role="img" aria-label="Fördelning per kategori"><g transform="rotate(-90 60 60)">';
+  parts.forEach(p => { const len = p.v / tot * C; svg += `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${p.c}" stroke-width="18" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}"></circle>`; off += len; });
+  return svg + `</g><text x="60" y="64" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">${esc(fmt(tot))}</text></svg>`;
+}
+function periodStats(x) {
+  const logs = S.log.filter(l => l.date >= x.start && l.date < x.end);
+  const by = {}; logs.forEach(l => { const c = catById(l.cat); const k = c ? c.id : '_x'; by[k] = (by[k] || 0) + num(l.amount); });
+  const n = diffDays(parseIso(x.end), parseIso(x.start));
+  const perDay = new Array(n).fill(0);
+  logs.forEach(l => { const i = diffDays(parseIso(l.date), parseIso(x.start)); if (i >= 0 && i < n) perDay[i] += num(l.amount); });
+  return { logs, by, perDay, total: logs.reduce((s, l) => s + num(l.amount), 0), n };
+}
+const keyName = k => k === '_x' ? 'Borttagen kategori' : (catById(k) ? catById(k).name : k);
+const keyColor = k => k === '_x' ? PALETTE[PALETTE.length - 1] : catColor(k);
+function renderReport(m) {
+  const list = histList(), sel = document.getElementById('rpSel');
+  const sig = list.map(x => x.start).join();
+  if (sel.dataset.sig !== sig) {
+    sel.innerHTML = list.map(x => `<option value="${x.start}">${dlIso(x.start)} – ${dl(addDays(parseIso(x.end), -1))}${x.start === m.sIso ? ' (pågår)' : ''}</option>`).join('');
+    sel.dataset.sig = sig; sel.value = rpKey || m.sIso;
+  }
+  if (!list.find(x => x.start === sel.value)) sel.value = list[0] ? list[0].start : '';
+  rpKey = sel.value;
+  const cur = list.find(x => x.start === rpKey), body = document.getElementById('rpBody');
+  if (!cur) { body.innerHTML = '<div class="note">Ingen data än.</div>'; return; }
+  const st = periodStats(cur), prevP = list.find(x => x.end === cur.start), ps = prevP ? periodStats(prevP) : null;
+  if (st.total <= 0) { body.innerHTML = '<div class="note">Inga utgifter loggade i den här perioden än. Logga några under Logga så fylls rapporten på.</div>'; return; }
+  const isCur = cur.start === m.sIso;
+  const elapsed = isCur ? Math.max(1, st.n - m.daysLeft + 1) : st.n;
+  const keys = Object.keys(st.by).sort((a, b) => st.by[b] - st.by[a]);
+  const topCat = keys[0];
+  const maxDay = Math.max(...st.perDay), maxI = st.perDay.indexOf(maxDay);
+  let h = `<div class="card"><h2>Så gick pengarna</h2><div class="donutwrap">${donut(keys.map(k => ({ v: st.by[k], c: keyColor(k) })))}
+    <div class="legend">${keys.map(k => `<div><span><span class="dot" style="background:${keyColor(k)}"></span>${esc(keyName(k))}</span><b>${fmt(st.by[k])}</b></div>`).join('')}</div></div></div>`;
+  h += `<div class="card"><h2>Nyckeltal</h2>
+    <div class="row"><span>Totalt använt</span><span><b>${fmt(st.total)}</b></span></div>
+    <div class="row"><span>Snitt per dag</span><span>${fmt(st.total / elapsed)}</span></div>
+    <div class="row"><span>Största kategori</span><span>${esc(keyName(topCat))} (${Math.round(st.by[topCat] / st.total * 100)} %)</span></div>
+    <div class="row"><span>Dyraste dag</span><span>${dl(addDays(parseIso(cur.start), maxI))} · ${fmt(maxDay)}</span></div></div>`;
+  const mx = Math.max(maxDay, 1);
+  h += `<div class="card"><h2>Utgifter per dag</h2><div class="bars">${st.perDay.map((v, i) => `<i class="${v > mx * 0.85 && v > 0 ? 'over' : ''}" style="height:${Math.max(2, v / mx * 100)}%" title="${dl(addDays(parseIso(cur.start), i))}: ${fmt(v)}"></i>`).join('')}</div>
+    <div class="row" style="border:0;padding-bottom:0"><small>${dlIso(cur.start)}</small><small>${dl(addDays(parseIso(cur.end), -1))}</small></div></div>`;
+  if (ps && ps.total > 0) {
+    const all = Array.from(new Set(keys.concat(Object.keys(ps.by)))).sort((a, b) => (st.by[b] || 0) - (st.by[a] || 0));
+    const dt = st.total - ps.total;
+    h += `<div class="card"><h2>Jämfört med förra perioden</h2><div class="crow" style="border:0;color:var(--mute);font-weight:700"><span>Kategori</span><span>Nu</span><span>Förra</span><span>Skillnad</span></div>
+      ${all.map(k => { const a = st.by[k] || 0, b = ps.by[k] || 0, d = a - b; return `<div class="crow"><span>${esc(keyName(k))}</span><span>${fmt(a)}</span><span>${fmt(b)}</span><span class="${d > 0 ? 'neg' : 'ok'}">${d > 0 ? '+' : ''}${fmt(d)}</span></div>`; }).join('')}
+      <div class="crow" style="font-weight:700;border-top:2px solid var(--line)"><span>Totalt</span><span>${fmt(st.total)}</span><span>${fmt(ps.total)}</span><span class="${dt > 0 ? 'neg' : 'ok'}">${dt > 0 ? '+' : ''}${fmt(dt)}</span></div></div>`;
+  }
+  const top = st.logs.slice().sort((a, b) => num(b.amount) - num(a.amount)).slice(0, 5);
+  h += `<div class="card"><h2>Största köpen</h2>${top.map(l => { const c = catById(l.cat); return `<div class="row"><span>${esc(l.note || (c ? c.name : 'Utgift'))} <small>${dlIso(l.date)}</small></span><span>${fmt(l.amount)}</span></div>`; }).join('')}</div>`;
+  const tr = list.slice(0, 6).reverse(), mxS = Math.max(...tr.map(x => x.spent), 1);
+  if (tr.length > 1) h += `<div class="card"><h2>Använt per period</h2>${tr.map(x => `<div class="hbar"><span>${dlIso(x.start)}</span><div class="pbar"><i style="width:${x.spent / mxS * 100}%"></i></div><b>${fmt(x.spent)}</b></div>`).join('')}</div>`;
+  body.innerHTML = h;
+}
+document.getElementById('rpSel').addEventListener('change', e => { rpKey = e.target.value; renderReport(model()); });
+
+/* ---------- belöningar (profil) ---------- */
+function renderRewardsEditor() {
+  document.getElementById('rwList').innerHTML = S.rewards.milestones.map(x => `
+    <div class="item" data-id="${x.id}">
+      <div class="head"><div style="max-width:90px"><label>Dagar</label><input type="number" min="1" inputmode="numeric" data-f="days" value="${x.days}"></div>
+      <div><label>Belöning</label><input type="text" data-f="text" value="${esc(x.text)}"></div>
+      <button class="btn del" data-del="${x.id}">Ta bort</button></div>
+    </div>`).join('') || '<p class="lbl">Inga belöningar ännu.</p>';
+}
+(function () {
+  const el = document.getElementById('rwList');
+  el.addEventListener('input', e => {
+    const t = e.target, row = t.closest('.item'); if (!row || !t.dataset.f) return;
+    const x = S.rewards.milestones.find(v => v.id === row.dataset.id); if (!x) return;
+    x[t.dataset.f] = t.dataset.f === 'days' ? Math.round(num(t.value)) : t.value; save(); update();
+  });
+  el.addEventListener('click', e => { const id = e.target.dataset && e.target.dataset.del; if (!id) return; removeItem(() => S.rewards.milestones, id, renderRewardsEditor); });
+})();
+
+/* ---------- samordning ---------- */
+function update() {
+  const m = model();
+  snapshot(m);
+  renderOverview(m); renderChips(); renderLog(m); renderWeeks(m); renderDays(m); renderHistory(m); renderReport(m);
+  document.getElementById('incTotal').textContent = fmt(m.income);
+  document.getElementById('expTotal').textContent = fmt(m.expTotal);
+}
+function syncStatic() {
+  const p = P();
+  document.getElementById('payday').value = S.payday;
+  document.getElementById('spread').checked = !!S.spread;
+  document.getElementById('dayFixed').value = S.dayFixed || '';
+  document.getElementById('pf-name').value = p.name || '';
+  document.getElementById('pf-greet').value = p.greeting || '';
+  document.getElementById('pf-title').value = p.title || '';
+  document.getElementById('pf-cur').value = p.currency || '';
+  document.getElementById('pf-r').value = p.radius;
+  document.getElementById('pf-showic').checked = !!p.showIcons;
+  document.getElementById('al-on').checked = !!S.alerts.on;
+  document.getElementById('al-th').value = S.alerts.threshold;
+  document.getElementById('rw-on').checked = !!S.rewards.on;
+  document.getElementById('pf-start').innerHTML = Object.keys(NAV).map(k => `<option value="${k}"${p.startTab === k ? ' selected' : ''}>${NAV[k]}</option>`).join('');
+  document.querySelectorAll('[data-hm]').forEach(c => c.checked = !!p.home[c.dataset.hm]);
+  document.getElementById('l-date').value = iso(new Date());
+}
+
+/* ---------- navigation ---------- */
+const TABS = Object.keys(NAV);
+function showTab(t, noHash) {
+  if (!TABS.includes(t)) t = 'hem';
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === 's-' + t));
+  document.querySelectorAll('.nb').forEach(b => { if (b.dataset.t === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  document.getElementById('fab').hidden = false;
+  window.scrollTo(0, 0);
+  if (!noHash) { try { location.hash = t; } catch (e) {} }
+}
+document.querySelectorAll('.nb').forEach(b => b.addEventListener('click', () => showTab(b.dataset.t)));
+window.addEventListener('hashchange', () => showTab(location.hash.slice(1), true));
+
+function segSwitch(segId, attr, map) {
+  document.querySelectorAll('#' + segId + ' button').forEach(b => b.addEventListener('click', () => {
+    setActive('#' + segId + ' button', x => x === b);
+    Object.entries(map).forEach(([k, id]) => { document.getElementById(id).style.display = b.dataset[attr] === k ? '' : 'none'; });
+  }));
+}
+segSwitch('planSeg', 'sub', { inc: 'p-inc', exp: 'p-exp', goal: 'p-goal' });
+segSwitch('wdSeg', 'v', { weeks: 'v-weeks', days: 'v-days', cats: 'v-cats' });
+segSwitch('hsSeg', 'h', { per: 'hist', rep: 'report' });
+document.querySelectorAll('#dmSeg button').forEach(b => b.addEventListener('click', () => { S.dayMode = b.dataset.m; save(); update(); }));
+document.getElementById('dayFixed').addEventListener('input', e => { S.dayFixed = num(e.target.value); save(); update(); });
+
+
+/* ---------- snabblogga (blad över alla flikar) ---------- */
+let qsCat = '', qsWhen = 0;
+function logNow(a, cat, note, daysAgo, doToast) {
+  const d = new Date(); d.setDate(d.getDate() - (daysAgo || 0));
+  const id = uid();
+  S.log.push({ id, date: iso(d), amount: a, cat, note: note || '' });
+  save(); update();
+  if (doToast !== false) {
+    const al = alertsFor(model());
+    toast((al.length ? al[0].t : 'Sparat ' + fmt(a)), 'Ångra', () => { S.log = S.log.filter(l => l.id !== id); save(); update(); toast('Borttaget'); });
+  }
+}
+function qsRender() {
+  const sc = spendCats();
+  if (!sc.find(c => c.id === qsCat)) qsCat = (sc.find(c => c.id === logCat) || sc[0] || {}).id || '';
+  document.getElementById('qs-cats').innerHTML = sc.map(c => `<button class="chip" data-c="${c.id}" aria-pressed="${c.id === qsCat}">${esc(cl(c))}</button>`).join('') || '<p class="lbl">Lägg till en utgiftskategori först.</p>';
+  renderQuick();
+  document.getElementById('qsQuickWrap').style.display = quickList.length ? '' : 'none';
+  document.getElementById('qsQuick').innerHTML = quickList.map((l, i) => `<button data-qi="${i}">${esc(l.note || catById(l.cat).name)} · ${fmt(l.amount)}</button>`).join('');
+}
+function qsOpen() {
+  qsWhen = 0; setActive('#qs-when .chip', x => x.dataset.w === '0');
+  document.getElementById('qs-amount').value = ''; document.getElementById('qs-note').value = '';
+  qsRender();
+  document.getElementById('qsBg').classList.add('on'); const q = document.getElementById('qs'); q.classList.add('on'); q.setAttribute('aria-hidden', 'false');
+  setTimeout(() => document.getElementById('qs-amount').focus(), 120);
+}
+function qsClose() { document.getElementById('qsBg').classList.remove('on'); const q = document.getElementById('qs'); q.classList.remove('on'); q.setAttribute('aria-hidden', 'true'); }
+function qsSave(again) {
+  const a = num(document.getElementById('qs-amount').value);
+  if (a <= 0) { toast('Skriv in ett belopp'); document.getElementById('qs-amount').focus(); return; }
+  if (!qsCat) { toast('Välj en kategori först'); return; }
+  logCat = qsCat;
+  logNow(a, qsCat, document.getElementById('qs-note').value.trim(), qsWhen);
+  if (again) { document.getElementById('qs-amount').value = ''; document.getElementById('qs-note').value = ''; document.getElementById('qs-amount').focus(); qsRender(); } else qsClose();
+}
+document.getElementById('fab').addEventListener('click', qsOpen);
+document.getElementById('qsBg').addEventListener('click', qsClose);
+document.getElementById('qsClose').addEventListener('click', qsClose);
+document.getElementById('qs-save').addEventListener('click', () => qsSave(false));
+document.getElementById('qs-next').addEventListener('click', () => qsSave(true));
+document.getElementById('qs-cats').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; qsCat = b.dataset.c; setActive('#qs-cats .chip', x => x === b); });
+document.getElementById('qs-when').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; qsWhen = Number(b.dataset.w); setActive('#qs-when .chip', x => x === b); });
+document.getElementById('qsQuick').addEventListener('click', e => {
+  const b = e.target.closest('[data-qi]'); if (!b) return; const l = quickList[Number(b.dataset.qi)]; if (!l) return;
+  logNow(num(l.amount), l.cat, l.note, qsWhen); qsClose();
+});
+['qs-amount', 'qs-note'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') qsSave(false); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') qsClose(); });
+
+/* ---------- logga ---------- */
+document.getElementById('l-cats').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; logCat = b.dataset.c; setActive('#l-cats .chip', x => x === b); });
+document.getElementById('l-save').addEventListener('click', () => {
+  const a = num(document.getElementById('l-amount').value);
+  if (a <= 0) { toast('Skriv in ett belopp'); document.getElementById('l-amount').focus(); return; }
+  if (!logCat) { toast('Välj en kategori först'); return; }
+  S.log.push({ id: uid(), date: document.getElementById('l-date').value || iso(new Date()), amount: a, cat: logCat, note: document.getElementById('l-note').value.trim() });
+  save();
+  document.getElementById('l-amount').value = ''; document.getElementById('l-note').value = '';
+  update();
+  const al = alertsFor(model());
+  toast(al.length ? al[0].t : 'Sparat ✓ ' + fmt(a));
+});
+document.getElementById('logList').addEventListener('click', e => {
+  const id = e.target.dataset && e.target.dataset.del; if (!id) return;
+  removeItem(() => S.log, id, () => {});
+});
+
+/* ---------- planera ---------- */
+document.getElementById('addInc').addEventListener('click', () => { S.incomes.push({ id: uid(), name: 'Ny inkomst', amount: 0, day: 25 }); save(); renderIncomes(); update(); });
+document.getElementById('addExp').addEventListener('click', () => { S.expenses.push({ id: uid(), name: 'Ny utgift', amount: 0, freq: 'month', day: 28, month: 1 }); save(); renderExpenses(); update(); });
+document.getElementById('addGoal').addEventListener('click', () => { S.goals.push({ id: uid(), name: '', target: 0, saved: 0, weekly: 0 }); save(); renderGoals(); update(); });
+document.getElementById('addCat').addEventListener('click', () => { S.cats.push({ id: uid(), name: 'Ny kategori', icon: '', weekly: 0, type: 'spend', carry: false }); save(); renderCats(); update(); });
+document.getElementById('addRw').addEventListener('click', () => { S.rewards.milestones.push({ id: uid(), days: 5, text: '' }); save(); renderRewardsEditor(); update(); });
+bindList(document.getElementById('incList'), 'incomes', renderIncomes);
+bindList(document.getElementById('expList'), 'expenses', renderExpenses);
+bindList(document.getElementById('goalList'), 'goals', renderGoals);
+
+/* ---------- profil ---------- */
+const bindText = (id, key) => document.getElementById(id).addEventListener('input', e => { P()[key] = e.target.value; save(); applyTheme(); update(); });
+bindText('pf-name', 'name'); bindText('pf-greet', 'greeting'); bindText('pf-title', 'title'); bindText('pf-cur', 'currency');
+document.getElementById('sws').addEventListener('click', e => {
+  const b = e.target.closest('.sw'); if (!b) return;
+  P().theme = b.dataset.th; if (b.dataset.th !== 'auto') P().colors = { ...PRESETS[b.dataset.th] };
+  save(); applyTheme();
+});
+[['bg', 'c-bg'], ['card', 'c-card'], ['accent', 'c-accent']].forEach(([k, id]) => document.getElementById(id).addEventListener('input', e => {
+  P().colors = { ...themeColors(), [k]: e.target.value }; P().theme = 'egen'; save(); applyTheme();
+}));
+const bindSeg = (id, attr, key, conv) => document.getElementById(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; P()[key] = conv(b.dataset[attr]); save(); applyTheme(); });
+bindSeg('sizeSeg', 's', 'size', Number); bindSeg('fontSeg', 'f', 'font', String); bindSeg('densSeg', 'd', 'density', Number); bindSeg('cardSeg', 'c', 'cardStyle', String);
+document.getElementById('pf-r').addEventListener('input', e => { P().radius = Number(e.target.value); save(); applyTheme(); });
+
+document.getElementById('pf-showic').addEventListener('change', e => { P().showIcons = e.target.checked; save(); applyLabels(); update(); });
+document.getElementById('icInputs').addEventListener('input', e => {
+  const t = e.target; if (!t.dataset.nk) return;
+  P().navIcons[t.dataset.nk] = t.value.trim();
+  if (t.value.trim() && !P().showIcons) { P().showIcons = true; document.getElementById('pf-showic').checked = true; }
+  save(); applyLabels(); update();
+});
+document.getElementById('icDefault').addEventListener('click', () => { P().navIcons = defaultNavIcons(); const d = defaultCats(); S.cats.forEach(c => { const f = d.find(x => x.id === c.id); if (f) c.icon = f.icon; }); P().showIcons = true; document.getElementById('pf-showic').checked = true; save(); renderIconInputs(); renderCats(); applyLabels(); update(); });
+document.getElementById('icClear').addEventListener('click', () => { P().navIcons = { hem: '', logga: '', veckor: '', planera: '', historia: '', profil: '' }; S.cats.forEach(c => { c.icon = ''; }); save(); renderIconInputs(); renderCats(); applyLabels(); update(); });
+
+document.getElementById('pf-start').addEventListener('change', e => { P().startTab = e.target.value; save(); });
+document.querySelectorAll('[data-hm]').forEach(c => c.addEventListener('change', () => { P().home[c.dataset.hm] = c.checked; save(); update(); }));
+document.getElementById('al-on').addEventListener('change', e => { S.alerts.on = e.target.checked; save(); update(); });
+document.getElementById('al-th').addEventListener('input', e => { S.alerts.threshold = Math.min(100, Math.max(50, Math.round(num(e.target.value)) || 80)); save(); update(); });
+document.getElementById('rw-on').addEventListener('change', e => { S.rewards.on = e.target.checked; save(); update(); });
+document.getElementById('payday').addEventListener('input', e => { S.payday = Math.round(num(e.target.value)) || 25; save(); update(); });
+document.getElementById('spread').addEventListener('change', e => { S.spread = e.target.checked; save(); update(); });
+
+document.getElementById('bkMake').addEventListener('click', () => {
+  const ta = document.getElementById('bk'); ta.value = JSON.stringify(S); ta.select();
+  try { navigator.clipboard.writeText(ta.value).then(() => toast('Kopierad ✓'), () => toast('Markera texten och kopiera själv')); } catch (e) { toast('Markera texten och kopiera själv'); }
+});
+document.getElementById('bkLoad').addEventListener('click', () => {
+  try {
+    const o = JSON.parse(document.getElementById('bk').value);
+    if (!o || !o.incomes) throw 0;
+    S = normalize(o); save(); boot(); toast('Inläst ✓');
+  } catch (e) { toast('Texten kunde inte läsas in'); }
+});
+function twoClick(id, label, fn) {
+  const btn = document.getElementById(id); let armed = false;
+  btn.addEventListener('click', () => {
+    if (!armed) { armed = true; btn.textContent = 'Klicka igen för att bekräfta'; setTimeout(() => { armed = false; btn.textContent = label; }, 4000); return; }
+    armed = false; btn.textContent = label; fn();
+  });
+}
+twoClick('reset', 'Fyll i exempeldata', () => { const p = S.profile; S = exampleFill(defaults()); S.profile = p; S.welcomed = true; S.tourDone = true; save(); boot(); toast('Exempeldata inlagd'); });
+twoClick('fresh', 'Töm allt (börja från noll)', () => { const p = S.profile; S = defaults(); S.profile = p; S.welcomed = true; save(); boot(); toast('Allt tömt. Börja under Planera.'); showTab('planera'); });
+
+/* ---------- säkerhetskopia som fil, dela ---------- */
+document.getElementById('bkDownload').addEventListener('click', () => {
+  try {
+    const blob = new Blob([JSON.stringify(S)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'budget-' + iso(new Date()) + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    toast('Kopian sparas som fil');
+  } catch (e) { const ta = document.getElementById('bk'); ta.value = JSON.stringify(S); ta.select(); toast('Kopiera texten i rutan nedan istället'); }
+});
+document.getElementById('bkUpload').addEventListener('click', () => document.getElementById('bkFile').click());
+document.getElementById('bkFile').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const fr = new FileReader();
+  fr.onload = () => { try { const o = JSON.parse(fr.result); if (!o || !o.incomes) throw 0; S = normalize(o); S.welcomed = true; save(); boot(); toast('Kopian är inläst'); } catch (err) { toast('Filen kunde inte läsas in'); } };
+  fr.onerror = () => toast('Filen kunde inte läsas in');
+  fr.readAsText(f); e.target.value = '';
+});
+function appUrl() { return location.href.split('#')[0]; }
+document.getElementById('shareNote').textContent = location.protocol === 'file:' ? 'Du kör appen som en fil på din enhet. Lägg filen på en webbplats för att kunna dela en länk, eller skicka filen direkt.' : '';
+document.getElementById('shareBtn').addEventListener('click', async () => {
+  const data = { title: P().title || 'Min budget', text: 'Prova den här enkla budgetappen.', url: appUrl() };
+  try { if (navigator.share) { await navigator.share(data); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  document.getElementById('copyLink').click();
+});
+document.getElementById('copyLink').addEventListener('click', () => {
+  const u = appUrl(), ok = () => toast('Länken är kopierad'), fail = () => toast('Markera och kopiera adressen i webbläsaren');
+  try { navigator.clipboard.writeText(u).then(ok, fail); } catch (e) { fail(); }
+});
+
+/* ---------- välkomstskärm ---------- */
+function showWelcome() { document.getElementById('welcome').classList.toggle('on', !S.welcomed); }
+function finishWelcome(demo) {
+  const name = document.getElementById('wl-name').value.trim(), pay = Math.min(31, Math.max(1, Math.round(num(document.getElementById('wl-pay').value)) || 25));
+  const p = S.profile; S = demo ? exampleFill(defaults()) : defaults(); S.profile = p;
+  S.profile.name = name; S.payday = pay; S.welcomed = true; if (demo) S.tourDone = true;
+  save(); boot(); showWelcome(); showTab('hem');
+  toast(demo ? 'Det här är exempelsiffror. Töm dem under Profil när du vill börja.' : 'Kul att du är här! Börja med dina inkomster.');
+  if (!demo) go('planera', 'inc');
+}
+document.getElementById('wl-fresh').addEventListener('click', () => finishWelcome(false));
+document.getElementById('wl-demo').addEventListener('click', () => finishWelcome(true));
+
+function boot() {
+  renderSwatches(); renderIconInputs(); syncStatic(); applyTheme(); applyBg(); applyLabels();
+  renderIncomes(); renderExpenses(); renderGoals(); renderCats(); renderRewardsEditor(); rpKey = ''; document.getElementById('rpSel').dataset.sig = ''; update();
+}
+boot(); persist();
+showTab(location.hash.slice(1) || P().startTab || 'hem', true);
+if (location.hash === '#snabb') { try { history.replaceState(null, '', location.pathname); } catch (e) {} qsOpen(); }
+window.addEventListener('hashchange', () => { if (location.hash === '#snabb') { try { history.replaceState(null, '', location.pathname); } catch (e) {} qsOpen(); } });
+showWelcome();
+</script>
+</body>
+</html>
