@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_bg">#1F7A5C</color>
+    <string name="sc_long">Logga ett köp</string>
+    <string name="sc_short">Logga köp</string>
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/ic_bg</item>
+        <item name="android:statusBarColor">#F4F6F5</item>
+        <item name="android:navigationBarColor">#F4F6F5</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="quick" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_short" android:shortcutLongLabel="@string/sc_long">
+        <intent android:action="se.minbudget.app.QUICK" android:targetPackage="se.minbudget.app"
+            android:targetClass="se.minbudget.app.MainActivity" />
+    </shortcut>
+</shortcuts>

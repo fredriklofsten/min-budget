@@ -136,6 +136,10 @@ input[type=color]{width:100%;height:46px;border:1px solid var(--line);border-rad
 .qs input.big{font-size:2rem;font-weight:700;text-align:center}
 .qs .row2{display:flex;gap:8px;margin-top:12px}
 .qs .row2 .btn{flex:1}
+.pay .emo{font-size:2.4rem;text-align:center;margin:4px 0 2px}
+.pay p{margin:4px 0 10px;text-align:center;color:var(--mute)}
+.pay .later{display:block;margin:10px auto 0;border:0;background:none;color:var(--mute);text-decoration:underline;font-size:.95rem;cursor:pointer;padding:8px}
+.paid{font-size:.85rem;color:var(--mute);margin:8px 0 0}
 
 .qchips.fav button{border-color:var(--accent);font-weight:600}
 .improw{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
@@ -434,6 +438,16 @@ body.has-bg .help{margin-top:6px}
   <button class="btn ghost" id="qs-fav" style="width:100%;margin-top:12px">Spara som snabbval</button>
   <div class="row2"><button class="btn ghost" id="qs-next">Spara och nästa</button><button class="btn" id="qs-save">Spara</button></div>
 </div>
+<div class="qs-bg" id="payBg"></div>
+<div class="qs pay" id="pay" role="dialog" aria-label="Lönedag" aria-hidden="true">
+  <div class="hd"><b id="payTitle">Lönedag!</b><button id="payClose" aria-label="Stäng">✕</button></div>
+  <div class="emo">💰</div>
+  <p id="payText"></p>
+  <input type="number" class="big" id="pay-amount" inputmode="decimal" min="0" aria-label="Belopp">
+  <p class="paid" id="payPrev" style="text-align:center"></p>
+  <div class="row2"><button class="btn ghost" id="paySame">Samma som förra</button><button class="btn" id="paySave">Spara</button></div>
+  <button class="later" id="payLater">Påminn mig senare</button>
+</div>
 <button class="fab" id="fab">＋ Logga köp</button>
 <div class="toast" id="toast"></div>
 <nav class="bottom" aria-label="Huvudmeny"><div class="in">
@@ -446,6 +460,7 @@ body.has-bg .help{margin-top:6px}
 </div></nav>
 
 <script>
+const AND = (typeof window.Android !== 'undefined') ? window.Android : null;
 const KEY = 'budgetapp-v2';
 const MON = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
 const MONTHS = ['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
@@ -479,7 +494,7 @@ function defaultCats() {
 }
 function exampleFill(s) {
   s.incomes = [
-    { id: uid(), name: 'Lön', amount: 28000, day: 25 },
+    { id: uid(), name: 'Lön', amount: 28000, day: 25, ask: true },
     { id: uid(), name: 'Övrigt', amount: 2000, day: 27 },
     { id: uid(), name: 'Barnbidrag', amount: 1250, day: 20 }
   ];
@@ -499,7 +514,7 @@ function defaults() {
     payday: 25, spread: true, dayMode: 'rolling', dayFixed: 0, updatedAt: 0, tourDone: false, welcomed: false,
     incomes: [],
     expenses: [],
-    quick: [], rules: {},
+    quick: [], rules: {}, payAsked: {},
     cats: defaultCats().map(c => ({ ...c, weekly: 0 })),
     goals: [],
     rewards: { on: true, milestones: [
@@ -533,6 +548,7 @@ function normalize(o) {
     out.goals = (g && num(g.target) > 0) ? [{ id: uid(), name: g.name || 'Sparmål', target: num(g.target), saved: num(g.saved), weekly: num((o.weekly || {}).spar) }] : [];
   }
   out.quick = Array.isArray(o.quick) ? o.quick : [];
+  out.payAsked = (o.payAsked && typeof o.payAsked === 'object') ? o.payAsked : {};
   out.rules = (o.rules && typeof o.rules === 'object' && !Array.isArray(o.rules)) ? o.rules : {};
   return out;
 }
@@ -858,7 +874,7 @@ function weekCardRows(w) {
 function renderOverview(m) {
   document.getElementById('periodLine').textContent = dl(m.start) + ' – ' + dl(addDays(m.end, -1)) + ' · nästa lön ' + dl(m.end) + ' (om ' + m.daysLeft + (m.daysLeft === 1 ? ' dag)' : ' dagar)');
   const H = P().home, neg = m.pool < 0;
-  let h = alertsHtml(m) + tourHtml();
+  let h = payBannerHtml() + alertsHtml(m) + tourHtml();
   h += `<div class="card hero">
     <div class="lbl">Kvar när allt är betalt och draget</div>
     <div class="big ${neg ? 'neg' : 'ok'}">${fmt(m.pool)}</div>
@@ -988,6 +1004,8 @@ function renderIncomes() {
         <div><label>Belopp</label><input type="number" inputmode="decimal" data-f="amount" value="${it.amount}"></div>
         <div><label>Dag i månaden</label><input type="number" inputmode="numeric" min="1" max="31" data-f="day" value="${it.day}"></div>
       </div>
+      <label class="chk"><input type="checkbox" data-f="ask"${it.ask ? ' checked' : ''}><span>Beloppet varierar. Fråga mig på dagen när den kommer.</span></label>
+      ${it.ask && it.paid && it.paid.length ? `<p class="paid">Senaste: ${it.paid.slice(-4).reverse().map(x => dlIso(x.date) + ' ' + fmt(x.amount)).join(' · ')}</p>` : ''}
     </div>`).join('') || '<p class="lbl">Inga inkomster ännu.</p>';
 }
 function renderExpenses() {
@@ -1027,6 +1045,7 @@ function bindList(el, arrName, rerender) {
     if (!row || !t.dataset.f) return;
     const it = S[arrName].find(x => x.id === row.dataset.id); if (!it) return;
     const f = t.dataset.f;
+    if (t.type === 'checkbox') { it[f] = t.checked; if (f === 'ask' && t.checked) S.payAsked[it.id] = iso(lastPayDate(it)); save(); rerender(); update(); return; }
     it[f] = (f === 'name' || f === 'freq') ? t.value : (f === 'month' || f === 'day') ? Math.round(num(t.value)) || 1 : num(t.value);
     save();
     if (f === 'freq') rerender(); else { const eff = row.querySelector('.eff'); if (eff && arrName === 'expenses') eff.textContent = effText(it); }
@@ -1226,6 +1245,7 @@ function update() {
   renderOverview(m); renderChips(); renderFav(); renderLog(m); renderWeeks(m); renderDays(m); renderHistory(m); renderReport(m);
   document.getElementById('incTotal').textContent = fmt(m.income);
   document.getElementById('expTotal').textContent = fmt(m.expTotal);
+  syncPayReminders();
 }
 function syncStatic() {
   const p = P();
@@ -1660,6 +1680,7 @@ twoClick('fresh', 'Töm allt (börja från noll)', () => { const p = S.profile; 
 /* ---------- säkerhetskopia som fil, dela ---------- */
 document.getElementById('bkDownload').addEventListener('click', () => {
   try {
+    if (AND) { AND.saveFile('budget-' + iso(new Date()) + '.json', JSON.stringify(S)); return; }
     const blob = new Blob([JSON.stringify(S)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'budget-' + iso(new Date()) + '.json';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
@@ -1677,6 +1698,7 @@ document.getElementById('bkFile').addEventListener('change', e => {
 function appUrl() { return location.href.split('#')[0]; }
 document.getElementById('shareNote').textContent = location.protocol === 'file:' ? 'Du kör appen som en fil på din enhet. Lägg filen på en webbplats för att kunna dela en länk, eller skicka filen direkt.' : '';
 document.getElementById('shareBtn').addEventListener('click', async () => {
+  if (AND) { AND.shareApp(); return; }
   const data = { title: P().title || 'Min budget', text: 'Prova den här enkla budgetappen.', url: appUrl() };
   try { if (navigator.share) { await navigator.share(data); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   document.getElementById('copyLink').click();
@@ -1685,6 +1707,80 @@ document.getElementById('copyLink').addEventListener('click', () => {
   const u = appUrl(), ok = () => toast('Länken är kopierad'), fail = () => toast('Markera och kopiera adressen i webbläsaren');
   try { navigator.clipboard.writeText(u).then(ok, fail); } catch (e) { fail(); }
 });
+
+/* ---------- lönedag: fråga hur mycket lönen blev ---------- */
+let payLater = false, payCur = null, paySig = '';
+function today0() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
+function lastPayDate(it, t) {
+  t = t || today0();
+  let d = dateIn(t.getFullYear(), t.getMonth(), Math.round(num(it.day)) || 25);
+  if (d > t) d = dateIn(t.getFullYear(), t.getMonth() - 1, Math.round(num(it.day)) || 25);
+  return d;
+}
+function prepPay() {
+  if (!S.payAsked || typeof S.payAsked !== 'object') S.payAsked = {};
+  const t = today0(), tIso = iso(t);
+  S.incomes.forEach(it => {
+    if (it.ask === undefined) it.ask = /lön/i.test(it.name || '');
+    if (it.ask && !S.payAsked[it.id]) { const d = iso(lastPayDate(it, t)); S.payAsked[it.id] = d === tIso ? 'ny' : d; }
+  });
+}
+function payDue() {
+  const t = today0();
+  return S.incomes.filter(it => it.ask).map(it => ({ it, d: lastPayDate(it, t) })).filter(x => S.payAsked[x.it.id] !== iso(x.d));
+}
+function payBannerHtml() {
+  const due = payDue(); if (!due.length) return '';
+  const x = due[0];
+  return `<div class="note" style="display:flex;gap:10px;align-items:center;justify-content:space-between"><span>💰 ${esc(x.it.name)} kom ${dl(x.d)}. Hur mycket blev det?</span><button class="btn sm" data-pay="1" style="white-space:nowrap;flex:none">Fyll i</button></div>`;
+}
+function checkPay(force) {
+  if (!S.welcomed || (payLater && !force)) return;
+  const due = payDue(); if (!due.length) { payClose(); return; }
+  if (payCur && document.getElementById('pay').classList.contains('on')) return;
+  const x = due[0], it = x.it; payCur = x;
+  document.getElementById('payTitle').textContent = iso(x.d) === iso(today0()) ? 'Lönedag!' : 'Lönen har kommit';
+  document.getElementById('payText').textContent = `Hur mycket fick du i ${it.name.toLowerCase()} den ${dl(x.d)}?`;
+  const inp = document.getElementById('pay-amount'); inp.value = ''; inp.placeholder = fmt(num(it.amount));
+  const last = (it.paid || []).slice(-1)[0];
+  document.getElementById('payPrev').textContent = last ? `Förra gången: ${fmt(last.amount)} (${dlIso(last.date)})` : `Nu inlagt: ${fmt(num(it.amount))}`;
+  document.getElementById('paySame').textContent = (last ? 'Samma som förra (' : 'Behåll (') + fmt(num(last ? last.amount : it.amount)) + ')';
+  document.getElementById('pay').classList.add('on'); document.getElementById('pay').setAttribute('aria-hidden', 'false');
+  document.getElementById('payBg').classList.add('on');
+}
+function payClose() {
+  payCur = null;
+  document.getElementById('pay').classList.remove('on'); document.getElementById('pay').setAttribute('aria-hidden', 'true');
+  document.getElementById('payBg').classList.remove('on');
+}
+function paySet(amount) {
+  if (!payCur) return;
+  const it = S.incomes.find(i => i.id === payCur.it.id); if (!it) { payClose(); return; }
+  const d = iso(payCur.d);
+  it.amount = Math.round(amount * 100) / 100;
+  it.paid = (it.paid || []).filter(p => p.date !== d); it.paid.push({ date: d, amount: it.amount }); it.paid.sort((a, b) => a.date.localeCompare(b.date)); it.paid = it.paid.slice(-24);
+  S.payAsked[it.id] = d; save(); payClose(); renderIncomes(); update();
+  toast(`${it.name} uppdaterad till ${fmt(it.amount)}`);
+  setTimeout(() => checkPay(), 400);
+}
+document.getElementById('paySave').addEventListener('click', () => {
+  const v = document.getElementById('pay-amount').value;
+  if (v === '') { toast('Skriv in beloppet först'); document.getElementById('pay-amount').focus(); return; }
+  paySet(Math.max(0, num(v)));
+});
+document.getElementById('pay-amount').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('paySave').click(); });
+document.getElementById('paySame').addEventListener('click', () => { if (!payCur) return; const last = (payCur.it.paid || []).slice(-1)[0]; paySet(num(last ? last.amount : payCur.it.amount)); });
+const payDismiss = () => { payLater = true; payClose(); update(); };
+document.getElementById('payLater').addEventListener('click', payDismiss);
+document.getElementById('payClose').addEventListener('click', payDismiss);
+document.getElementById('payBg').addEventListener('click', payDismiss);
+document.addEventListener('click', e => { if (e.target.closest('[data-pay]')) { payLater = false; checkPay(true); } });
+function syncPayReminders() {
+  if (!AND || typeof AND.setPayReminders !== 'function') return;
+  const list = S.incomes.filter(it => it.ask).map(it => ({ id: it.id, name: it.name, day: Math.round(num(it.day)) || 25 }));
+  const sig = JSON.stringify(list); if (sig === paySig) return; paySig = sig;
+  try { AND.setPayReminders(sig); } catch (e) {}
+}
 
 /* ---------- välkomstskärm ---------- */
 function showWelcome() { document.getElementById('welcome').classList.toggle('on', !S.welcomed); }
@@ -1700,7 +1796,7 @@ document.getElementById('wl-fresh').addEventListener('click', () => finishWelcom
 document.getElementById('wl-demo').addEventListener('click', () => finishWelcome(true));
 
 function boot() {
-  renderSwatches(); renderIconInputs(); syncStatic(); applyTheme(); applyBg(); applyLabels();
+  prepPay(); renderSwatches(); renderIconInputs(); syncStatic(); applyTheme(); applyBg(); applyLabels();
   renderIncomes(); renderExpenses(); renderGoals(); renderCats(); renderRewardsEditor(); rpKey = ''; document.getElementById('rpSel').dataset.sig = ''; update();
 }
 boot(); persist();
@@ -1708,6 +1804,9 @@ showTab(location.hash.slice(1) || P().startTab || 'hem', true);
 if (location.hash === '#snabb') { try { history.replaceState(null, '', location.pathname); } catch (e) {} qsOpen(); }
 window.addEventListener('hashchange', () => { if (location.hash === '#snabb') { try { history.replaceState(null, '', location.pathname); } catch (e) {} qsOpen(); } });
 showWelcome();
+checkPay();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { update(); checkPay(); } });
+window.payNow = () => { payLater = false; update(); checkPay(true); };
 </script>
 </body>
 </html>

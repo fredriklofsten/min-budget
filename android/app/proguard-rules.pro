@@ -1,0 +1,2 @@
+-keepclassmembers class se.minbudget.app.MainActivity$Bridge { @android.webkit.JavascriptInterface <methods>; }
+-keepattributes JavascriptInterface
